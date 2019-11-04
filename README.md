@@ -1,5 +1,5 @@
 # AnalyticRayTracing in Ice
-C++ code which uses analytic ray tracing for tracing rays between any two points in ice. Currently I have set it to work with AraSim n(z)=1.78-0.43*exp(0.0132*z)
+C++ code which uses analytic ray tracing for tracing rays between any two points in ice. Currently I have set it to work with AraSim n(z)=1.78-0.43exp(0.0132z)
 
 - IceRayTracing.C : This script takes in as arguments of the Tx and Rx coordinates. Then it calculates the two possible rays between them. It prints out the launch angle, recieve angle and propogation time for both rays. 
 
@@ -18,7 +18,7 @@ You will need to have a functioning installation of [GSL](https://www.gnu.org/so
 - You will need to set the enviromnent variable `GSLDIR` to your local installation of GSL.
 - You will also need to have `GSLDIR` in your `LD_LIBRARY_PATH`.
 - For Mac users: you can locate your GSL installation via `gsl-config --prefix`, i.e. `export GSLDIR=$(gsl-config --prefix)`
-- If you have Ubuntu or Linux you can skip all of the above and just get it from the repository by doing: "sudo apt install libgsl-dev"
+- If you have Ubuntu or Linux you can skip all of the above and just get it from the repository by doing: `sudo apt install libgsl-dev`
 
 ## How to install and run the scripts
 
