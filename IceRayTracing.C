@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include <math.h>
-#include <chrono>
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -8,8 +7,6 @@
 #include <gsl/gsl_math.h>
 #include <gsl/gsl_roots.h>
 #include <gsl/gsl_deriv.h>
-#include <gsl/gsl_fit.h>
-#include <gsl/gsl_spline.h>
 #include <sys/time.h>
 
 using namespace std;

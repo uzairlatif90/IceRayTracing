@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include <math.h>
-#include <chrono>
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -8,8 +7,6 @@
 #include <gsl/gsl_math.h>
 #include <gsl/gsl_roots.h>
 #include <gsl/gsl_deriv.h>
-#include <gsl/gsl_fit.h>
-#include <gsl/gsl_spline.h>
 #include <sys/time.h>
 
 using namespace std;
@@ -223,7 +220,7 @@ double *IceRayTracing(double x0, double z0, double x1, double z1){
   double *output=new double[11];
 
   ////Plot the ray solutions
-  bool Plot=true;
+  bool Plot=false;
   ////calculate the attenuation(not included yet!)
   bool attcal=false;
   bool Flip=false;
