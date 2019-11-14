@@ -206,6 +206,234 @@ double fRaa(double x,void *params){
 //   return tan(asin( (Getnz(Z0)*sin(x))/Getnz(Z1) ) ) - tan(Lang);
 // }
 
+////function for plotting and storing the rays
+void PlotAndStoreRays(double x0,double z0, double z1, double x1, double zmax, double lvalues[3], double checkzeroes[3], bool Flip){
+
+  double lvalueD=lvalues[0];
+  double lvalueR=lvalues[1];
+  double lvalueRa=lvalues[2];
+
+  double checkzeroD=checkzeroes[0];
+  double checkzeroR=checkzeroes[1];
+  double checkzeroRa=checkzeroes[2]; 
+  
+  ////Set the name of the text files
+  ofstream aoutD("DirectRay.txt");
+  ofstream aoutR("ReflectedRay.txt");
+  ofstream aoutRa("RefractedRay.txt");
+
+  ////Set the step size for plotting.
+  double h=0.1;
+  ////Set the total steps required for looping over the whole ray path
+  int dmax=100000;
+
+  ////Set the values to start the rays from
+  double zn=z1;
+  double xn=0;
+
+  ////Map out the direct ray path
+  int npnt=0;
+  struct fDnfR_params params6a;
+  struct fDnfR_params params6b;
+  struct fDnfR_params params6c;
+  double checknan=0;
+  TNtuple *nt1=new TNtuple("nt1","nt1","x:z");
+    
+  for(int i=0;i<dmax;i++){
+    params6a = {A_ice, GetB(zn), GetC(zn), lvalueD};
+    params6b = {A_ice, GetB(z0), GetC(z0), lvalueD};
+    xn=fDnfR(zn,&params6a)-fDnfR(z0,&params6b);
+    checknan=fDnfR(zn,&params6a);
+    if(isnan(checknan)==false && Flip==false){
+      nt1->Fill(xn,zn);
+      aoutD<<npnt<<" "<<xn<<" "<<zn<<endl;;
+      npnt++;
+    }
+
+    if(isnan(checknan)==false && Flip==true){
+      nt1->Fill(x1-xn,zn);
+      aoutD<<npnt<<" "<<x1-xn<<" "<<zn<<endl;;
+      npnt++;
+    }
+
+    zn=zn-h;
+    if(zn<z0){
+      zn=z0;
+      i=dmax+2;      
+    }  
+  }
+
+  ////Map out the 1st part of the reflected ray
+  zn=z1;
+  npnt=0;
+  TNtuple *nt2=new TNtuple("nt2","nt2","x:z");
+  for(int i=0;i<dmax;i++){
+    params6a = {A_ice, GetB(zn), -GetC(zn), lvalueR};
+    params6b = {A_ice, GetB(z0), -GetC(z0), lvalueR};
+    params6c = {A_ice, GetB(0.0000001), -GetC(0.0000001), lvalueR};
+    xn=(fDnfR(-zn,&params6a)-fDnfR(-z0,&params6b)+2*fabs(fDnfR(0.0000001,&params6c)-fDnfR(-z0,&params6b)));
+    checknan=fDnfR(-zn,&params6a);
+    if(isnan(checknan)==false && zn<=0 && Flip==false){
+      nt2->Fill(xn,zn);
+      aoutR<<npnt<<" "<<xn<<" "<<zn<<endl;
+      npnt++;
+    }
+
+    if(isnan(checknan)==false && zn<=0 && Flip==true){
+      nt2->Fill(x1-xn,zn);
+      aoutR<<npnt<<" "<<x1-xn<<" "<<zn<<endl;
+      npnt++;
+    }
+      
+    zn=zn+h;
+    if(zn>0){
+      i=dmax+2;      
+    }
+  }
+
+  ////Map out the 2nd part of the reflected ray
+  zn=-0.0000001;
+  for(int i=0;i<dmax;i++){  
+    params6a = {A_ice, GetB(zn), GetC(zn), lvalueR};
+    params6b = {A_ice, GetB(z0), GetC(z0), lvalueR};
+    xn=fDnfR(zn,&params6a)-fDnfR(z0,&params6b);
+    checknan=fDnfR(zn,&params6a);
+    if(isnan(checknan)==false && Flip==false){
+      nt2->Fill(xn,zn);
+      aoutR<<npnt<<" "<<xn<<" "<<zn<<endl;
+      npnt++;
+    }
+      
+    if(isnan(checknan)==false && Flip==true){
+      nt2->Fill(x1-xn,zn);
+      aoutR<<npnt<<" "<<x1-xn<<" "<<zn<<endl;
+      npnt++;
+    }
+
+    zn=zn-h;
+    if(zn<z0){
+      zn=z0;
+      i=dmax+2;
+    }
+  }
+
+  ////Map out the 1st part of the refracted ray
+  zn=z1;
+  npnt=0;
+  TNtuple *nt3=new TNtuple("nt3","nt3","x:z");
+    
+  for(int i=0;i<dmax;i++){
+    params6a = {A_ice, GetB(zn), -GetC(zn), lvalueRa};
+    params6b = {A_ice, GetB(z0), -GetC(z0), lvalueRa};
+    params6c = {A_ice, GetB(zmax), -GetC(zmax), lvalueRa};
+    xn=(fDnfR(-zn,&params6a)-fDnfR(-z0,&params6b)+2*fabs(fDnfR(zmax,&params6c)-fDnfR(-z0,&params6b)));
+    checknan=fDnfR(-zn,&params6a);
+    if(isnan(checknan)==false && zn<=0 && Flip==false){
+      nt3->Fill(xn,zn);
+      aoutRa<<npnt<<" "<<xn<<" "<<zn<<endl;
+      npnt++;
+    }
+
+    if(isnan(checknan)==false && zn<=0 && Flip==true){
+      nt3->Fill(x1-xn,zn);
+      aoutRa<<npnt<<" "<<x1-xn<<" "<<zn<<endl;
+      npnt++;
+    }
+    
+    zn=zn+h;
+    if(zn>-zmax){
+      i=dmax+2;      
+    }
+  }
+
+  ////Map out the 2nd part of the refracted ray
+  zn=-zmax;
+  for(int i=0;i<dmax;i++){  
+    params6a = {A_ice, GetB(zn), GetC(zn), lvalueRa};
+    params6b = {A_ice, GetB(z0), GetC(z0), lvalueRa};
+    xn=fDnfR(zn,&params6a)-fDnfR(z0,&params6b);
+    checknan=fDnfR(zn,&params6a);
+    if(isnan(checknan)==false && Flip==false){
+      nt3->Fill(xn,zn);
+      aoutRa<<npnt<<" "<<xn<<" "<<zn<<endl;
+      npnt++;
+    }
+
+    if(isnan(checknan)==false && Flip==true){
+      nt3->Fill(x1-xn,zn);
+      aoutRa<<npnt<<" "<<x1-xn<<" "<<zn<<endl;
+      npnt++;
+    }
+    
+    zn=zn-h;
+    if(zn<z0){
+      zn=z0;
+      i=dmax+2;
+    }
+  }
+
+  double dsw=0;
+  ////If the Tx and Rx depth were switched then put them back to their original position
+  if(Flip==true){
+    dsw=z0;
+    z0=z1;
+    z1=dsw;
+  }
+
+  ////Plot the all the possible ray paths on the canvas
+  TNtuple *nt4=new TNtuple("nt4","nt4","x:z");
+  nt4->Fill(x1,z1);
+  nt4->SetMarkerStyle(20);
+  nt4->SetMarkerColor(kRed);
+
+  TNtuple *nt4b=new TNtuple("nt4b","nt4b","x:z");
+  nt4b->Fill(0,z0);
+  nt4b->SetMarkerStyle(20);
+  nt4b->SetMarkerColor(kGreen);
+    
+  nt1->SetMarkerStyle(20);
+  nt1->SetMarkerColor(2);
+
+  nt2->SetMarkerStyle(20);
+  nt2->SetMarkerColor(2);
+
+  TNtuple *nt5=new TNtuple("nt5","nt5","x:z");
+  nt5->Fill(0,z0-50);
+  nt5->Fill(x1+50,0);
+
+  gStyle->SetTitleX(0.2);
+  gStyle->SetTitleAlign(23);
+  TCanvas *c2=new TCanvas("c2","c2");
+  c2->cd();
+  nt5->Draw("z:x","","P");
+  TH2D *htemp = (TH2D*)gPad->GetPrimitive("htemp");
+  htemp->GetXaxis()->SetNdivisions(20);
+  c2->SetGridx();
+  c2->SetGridy();
+  TString title="Depth vs Distance, Tx at x=";
+  title+=x0;
+  title+=" m,z=";
+  title+=(int)z0;
+  title+=" m, Rx at x=";
+  title+=x1;
+  title+=" m,z=";
+  title+=(int)z1;
+  title+=" m; Distance (m);Depth (m)";
+  htemp->SetTitle(title);
+
+  nt4->Draw("z:x","","SAME P");
+  nt4b->Draw("z:x","","SAME P");
+  if(fabs(checkzeroR)<0.5){
+    nt2->Draw("z:x","","SAME L");
+  }
+  if(fabs(checkzeroRa)<0.5){
+    nt3->Draw("z:x","","SAME L");
+  }
+  if(fabs(checkzeroD)<0.5){
+    nt1->Draw("z:x","","SAME L");
+  }
+}
+
 ////This function is used to measure the amount of time the code takes to run
 typedef unsigned long long timestamp_t;
 static timestamp_t get_timestamp (){
@@ -470,225 +698,27 @@ double *IceRayTracing(double x0, double z0, double x1, double z1){
 
   ////This part of the code can be used if the user wants to plot the individual ray paths. This part of the code prints out the individual ray paths in text files and also plots them on a canvas
   if(Plot==true){
+    double lvalues[3];
+    lvalues[0]=lvalueD;
+    lvalues[1]=lvalueR;
+    lvalues[2]=lvalueRa;
 
-    ////Set the name of the text files
-    ofstream aoutD("DirectRay.txt");
-    ofstream aoutR("ReflectedRay.txt");
-    ofstream aoutRa("RefractedRay.txt");
-
-    ////Set the step size for plotting.
-    double h=0.1;
-    ////Set the total steps required for looping over the whole ray path
-    int dmax=-round(lowerz/h);
-    dmax=100000;
-
-    ////Set the values to start the rays from
-    double zn=z1;
-    double xn=0;
-
-    ////Map out the direct ray path
-    int npnt=0;
-    struct fDnfR_params params6a;
-    struct fDnfR_params params6b;
-    struct fDnfR_params params6c;
-    double checknan=0;
-    TNtuple *nt1=new TNtuple("nt1","nt1","x:z");
+    double checkzeroes[3];
+    checkzeroes[0]=checkzeroD;
+    checkzeroes[1]=checkzeroR;
+    checkzeroes[2]=checkzeroRa;
     
-    for(int i=0;i<dmax;i++){
-      params6a = {A_ice, GetB(zn), GetC(zn), lvalueD};
-      params6b = {A_ice, GetB(z0), GetC(z0), lvalueD};
-      xn=fDnfR(zn,&params6a)-fDnfR(z0,&params6b);
-      checknan=fDnfR(zn,&params6a);
-      if(isnan(checknan)==false && Flip==false){
-	nt1->Fill(xn,zn);
-	aoutD<<npnt<<" "<<xn<<" "<<zn<<endl;;
-	npnt++;
-      }
-
-      if(isnan(checknan)==false && Flip==true){
-	nt1->Fill(x1-xn,zn);
-	aoutD<<npnt<<" "<<x1-xn<<" "<<zn<<endl;;
-	npnt++;
-      }
-
-      zn=zn-h;
-      if(zn<z0){
-	zn=z0;
-	i=dmax+2;      
-      }  
-    }
-
-    ////Map out the 1st part of the reflected ray
-    zn=z1;
-    npnt=0;
-    TNtuple *nt2=new TNtuple("nt2","nt2","x:z");
-    for(int i=0;i<dmax;i++){
-      params6a = {A_ice, GetB(zn), -GetC(zn), lvalueR};
-      params6b = {A_ice, GetB(z0), -GetC(z0), lvalueR};
-      params6c = {A_ice, GetB(0.0000001), -GetC(0.0000001), lvalueR};
-      xn=(fDnfR(-zn,&params6a)-fDnfR(-z0,&params6b)+2*fabs(fDnfR(0.0000001,&params6c)-fDnfR(-z0,&params6b)));
-      checknan=fDnfR(-zn,&params6a);
-      if(isnan(checknan)==false && zn<=0 && Flip==false){
-	nt2->Fill(xn,zn);
-	aoutR<<npnt<<" "<<xn<<" "<<zn<<endl;
-	npnt++;
-      }
-
-      if(isnan(checknan)==false && zn<=0 && Flip==true){
-	nt2->Fill(x1-xn,zn);
-	aoutR<<npnt<<" "<<x1-xn<<" "<<zn<<endl;
-	npnt++;
-      }
-      
-      zn=zn+h;
-      if(zn>0){
-	i=dmax+2;      
-      }
-    }
-
-    ////Map out the 2nd part of the reflected ray
-    zn=-0.0000001;
-    for(int i=0;i<dmax;i++){  
-      params6a = {A_ice, GetB(zn), GetC(zn), lvalueR};
-      params6b = {A_ice, GetB(z0), GetC(z0), lvalueR};
-      xn=fDnfR(zn,&params6a)-fDnfR(z0,&params6b);
-      checknan=fDnfR(zn,&params6a);
-      if(isnan(checknan)==false && Flip==false){
-	nt2->Fill(xn,zn);
-	aoutR<<npnt<<" "<<xn<<" "<<zn<<endl;
-	npnt++;
-      }
-      
-      if(isnan(checknan)==false && Flip==true){
-	nt2->Fill(x1-xn,zn);
-	aoutR<<npnt<<" "<<x1-xn<<" "<<zn<<endl;
-	npnt++;
-      }
-
-      zn=zn-h;
-      if(zn<z0){
-	zn=z0;
-	i=dmax+2;
-      }
-    }
-
-    ////Map out the 1st part of the refracted ray
-    zn=z1;
-    npnt=0;
-    TNtuple *nt3=new TNtuple("nt3","nt3","x:z");
-    
-    for(int i=0;i<dmax;i++){
-      params6a = {A_ice, GetB(zn), -GetC(zn), lvalueRa};
-      params6b = {A_ice, GetB(z0), -GetC(z0), lvalueRa};
-      params6c = {A_ice, GetB(zmax), -GetC(zmax), lvalueRa};
-      xn=(fDnfR(-zn,&params6a)-fDnfR(-z0,&params6b)+2*fabs(fDnfR(zmax,&params6c)-fDnfR(-z0,&params6b)));
-      checknan=fDnfR(-zn,&params6a);
-      if(isnan(checknan)==false && zn<=0 && Flip==false){
-	nt3->Fill(xn,zn);
-	aoutRa<<npnt<<" "<<xn<<" "<<zn<<endl;
-	npnt++;
-      }
-
-      if(isnan(checknan)==false && zn<=0 && Flip==true){
-	nt3->Fill(x1-xn,zn);
-	aoutRa<<npnt<<" "<<x1-xn<<" "<<zn<<endl;
-	npnt++;
-      }
-    
-      zn=zn+h;
-      if(zn>-zmax){
-	i=dmax+2;      
-      }
-    }
-
-    ////Map out the 2nd part of the refracted ray
-    zn=-zmax;
-    for(int i=0;i<dmax;i++){  
-      params6a = {A_ice, GetB(zn), GetC(zn), lvalueRa};
-      params6b = {A_ice, GetB(z0), GetC(z0), lvalueRa};
-      xn=fDnfR(zn,&params6a)-fDnfR(z0,&params6b);
-      checknan=fDnfR(zn,&params6a);
-      if(isnan(checknan)==false && Flip==false){
-	nt3->Fill(xn,zn);
-	aoutRa<<npnt<<" "<<xn<<" "<<zn<<endl;
-	npnt++;
-      }
-
-      if(isnan(checknan)==false && Flip==true){
-	nt3->Fill(x1-xn,zn);
-	aoutRa<<npnt<<" "<<x1-xn<<" "<<zn<<endl;
-	npnt++;
-      }
-    
-      zn=zn-h;
-      if(zn<z0){
-	zn=z0;
-	i=dmax+2;
-      }
-    }
-
-    ////If the Tx and Rx depth were switched then put them back to their original position
-    if(Flip==true){
-      dsw=z0;
-      z0=z1;
-      z1=dsw;
-    }
-
-    ////Plot the all the possible ray paths on the canvas
-    TNtuple *nt4=new TNtuple("nt4","nt4","x:z");
-    nt4->Fill(x1,z1);
-    nt4->SetMarkerStyle(20);
-    nt4->SetMarkerColor(kRed);
-
-    TNtuple *nt4b=new TNtuple("nt4b","nt4b","x:z");
-    nt4b->Fill(0,z0);
-    nt4b->SetMarkerStyle(20);
-    nt4b->SetMarkerColor(kGreen);
-    
-    nt1->SetMarkerStyle(20);
-    nt1->SetMarkerColor(2);
-
-    nt2->SetMarkerStyle(20);
-    nt2->SetMarkerColor(2);
-
-    TNtuple *nt5=new TNtuple("nt5","nt5","x:z");
-    nt5->Fill(0,lowerz-50);
-    nt5->Fill(x1+50,0);
-
-    gStyle->SetTitleX(0.2);
-    gStyle->SetTitleAlign(23);
-    TCanvas *c2=new TCanvas("c2","c2");
-    c2->cd();
-    nt5->Draw("z:x","","P");
-    TH2D *htemp = (TH2D*)gPad->GetPrimitive("htemp");
-    htemp->GetXaxis()->SetNdivisions(20);
-    c2->SetGridx();
-    c2->SetGridy();
-    TString title="Depth vs Distance, Tx at x=";
-    title+=x0;
-    title+=" m,z=";
-    title+=(int)z0;
-    title+=" m, Rx at x=";
-    title+=x1;
-    title+=" m,z=";
-    title+=(int)z1;
-    title+=" m; Distance (m);Depth (m)";
-    htemp->SetTitle(title);
-
-    nt4->Draw("z:x","","SAME P");
-    nt4b->Draw("z:x","","SAME P");
-    if(fabs(checkzeroR)<0.5){
-      nt2->Draw("z:x","","SAME L");
-    }
-    if(fabs(checkzeroRa)<0.5 && timeRa!=0){
-      nt3->Draw("z:x","","SAME L");
-     }
-    if(fabs(checkzeroD)<0.5){
-      nt1->Draw("z:x","","SAME L");
-    }
-    
+    PlotAndStoreRays(x0,z0,z1,x1,zmax,lvalues,checkzeroes,Flip);
   }
-
+  
+  dsw=0;
+  ////If the Tx and Rx depth were switched then put them back to their original position
+  if(Flip==true){
+    dsw=z0;
+    z0=z1;
+    z1=dsw;
+  }
+  
   ////print out all the output from the code
   //cout<<0<<" ,x0= "<<x0<<" ,z0= "<<z0<<" ,x1= "<<x1<<" ,z1= "<<z1<<" ,langRa= "<<output[2]<<" ,langR= "<<output[1]<<" ,langD= "<<output[0]<<" ,langD-langR= "<<output[0]-output[1]<<" ,langD-langRa= "<<output[0]-output[2]<<" ,RangRa= "<<output[8]<<" ,RangR= "<<output[7]<<" ,RangD= "<<output[6]<<" ,RangR-RangD= "<<output[7]-output[6]<<" ,RangRa-RangD= "<<output[8]-output[6]<<" ,timeRa= "<<output[5]<<" ,timeR= "<<output[4]<<" ,timeD= "<<output[3]<<" ,timeR-timeD= "<<output[4]-output[3]<<" ,timeRa-timeD= "<<output[5]-output[3]<<" ,lvalueRa "<<lvalueRa<<" ,lvalueR "<<lvalueR<<" "<<" ,lvalueD "<<lvalueD<<" ,checkzeroRa "<<checkzeroRa<<" ,checkzeroR "<<checkzeroR<<" ,checkzeroD "<<checkzeroD<<endl;
 

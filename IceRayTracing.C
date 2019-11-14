@@ -208,6 +208,161 @@ double fRaa(double x,void *params){
 //   return tan(asin( (Getnz(Z0)*sin(x))/Getnz(Z1) ) ) - tan(Lang);
 // }
 
+////function for plotting and storing the rays
+void PlotAndStoreRays(double x0,double z0, double z1, double x1, double zmax, double lvalues[3], double checkzeroes[3], bool Flip){
+
+  double lvalueD=lvalues[0];
+  double lvalueR=lvalues[1];
+  double lvalueRa=lvalues[2];
+
+  double checkzeroD=checkzeroes[0];
+  double checkzeroR=checkzeroes[1];
+  double checkzeroRa=checkzeroes[2]; 
+  
+  ////Set the name of the text files
+  ofstream aoutD("DirectRay.txt");
+  ofstream aoutR("ReflectedRay.txt");
+  ofstream aoutRa("RefractedRay.txt");
+
+  ////Set the step size for plotting.
+  double h=0.1;
+  ////Set the total steps required for looping over the whole ray path
+  int dmax=100000;
+
+  ////Set the values to start the rays from
+  double zn=z1;
+  double xn=0;
+
+  ////Map out the direct ray path
+  int npnt=0;
+  struct fDnfR_params params6a;
+  struct fDnfR_params params6b;
+  struct fDnfR_params params6c;
+  double checknan=0;
+    
+  for(int i=0;i<dmax;i++){
+    params6a = {A_ice, GetB(zn), GetC(zn), lvalueD};
+    params6b = {A_ice, GetB(z0), GetC(z0), lvalueD};
+    xn=fDnfR(zn,&params6a)-fDnfR(z0,&params6b);
+    checknan=fDnfR(zn,&params6a);
+    if(isnan(checknan)==false && Flip==false){
+      aoutD<<npnt<<" "<<xn<<" "<<zn<<endl;;
+      npnt++;
+    }
+
+    if(isnan(checknan)==false && Flip==true){
+      aoutD<<npnt<<" "<<x1-xn<<" "<<zn<<endl;;
+      npnt++;
+    }
+
+    zn=zn-h;
+    if(zn<z0){
+      zn=z0;
+      i=dmax+2;      
+    }  
+  }
+
+  ////Map out the 1st part of the reflected ray
+  zn=z1;
+  npnt=0;
+  for(int i=0;i<dmax;i++){
+    params6a = {A_ice, GetB(zn), -GetC(zn), lvalueR};
+    params6b = {A_ice, GetB(z0), -GetC(z0), lvalueR};
+    params6c = {A_ice, GetB(0.0000001), -GetC(0.0000001), lvalueR};
+    xn=(fDnfR(-zn,&params6a)-fDnfR(-z0,&params6b)+2*fabs(fDnfR(0.0000001,&params6c)-fDnfR(-z0,&params6b)));
+    checknan=fDnfR(-zn,&params6a);
+    if(isnan(checknan)==false && zn<=0 && Flip==false){
+      aoutR<<npnt<<" "<<xn<<" "<<zn<<endl;
+      npnt++;
+    }
+
+    if(isnan(checknan)==false && zn<=0 && Flip==true){
+      aoutR<<npnt<<" "<<x1-xn<<" "<<zn<<endl;
+      npnt++;
+    }
+      
+    zn=zn+h;
+    if(zn>0){
+      i=dmax+2;      
+    }
+  }
+
+  ////Map out the 2nd part of the reflected ray
+  zn=-0.0000001;
+  for(int i=0;i<dmax;i++){  
+    params6a = {A_ice, GetB(zn), GetC(zn), lvalueR};
+    params6b = {A_ice, GetB(z0), GetC(z0), lvalueR};
+    xn=fDnfR(zn,&params6a)-fDnfR(z0,&params6b);
+    checknan=fDnfR(zn,&params6a);
+    if(isnan(checknan)==false && Flip==false){
+      aoutR<<npnt<<" "<<xn<<" "<<zn<<endl;
+      npnt++;
+    }
+      
+    if(isnan(checknan)==false && Flip==true){
+      aoutR<<npnt<<" "<<x1-xn<<" "<<zn<<endl;
+      npnt++;
+    }
+
+    zn=zn-h;
+    if(zn<z0){
+      zn=z0;
+      i=dmax+2;
+    }
+  }
+
+  ////Map out the 1st part of the refracted ray
+  zn=z1;
+  npnt=0;
+    
+  for(int i=0;i<dmax;i++){
+    params6a = {A_ice, GetB(zn), -GetC(zn), lvalueRa};
+    params6b = {A_ice, GetB(z0), -GetC(z0), lvalueRa};
+    params6c = {A_ice, GetB(zmax), -GetC(zmax), lvalueRa};
+    xn=(fDnfR(-zn,&params6a)-fDnfR(-z0,&params6b)+2*fabs(fDnfR(zmax,&params6c)-fDnfR(-z0,&params6b)));
+    checknan=fDnfR(-zn,&params6a);
+    if(isnan(checknan)==false && zn<=0 && Flip==false){
+      aoutRa<<npnt<<" "<<xn<<" "<<zn<<endl;
+      npnt++;
+    }
+
+    if(isnan(checknan)==false && zn<=0 && Flip==true){
+      aoutRa<<npnt<<" "<<x1-xn<<" "<<zn<<endl;
+      npnt++;
+    }
+    
+    zn=zn+h;
+    if(zn>-zmax){
+      i=dmax+2;      
+    }
+  }
+
+  ////Map out the 2nd part of the refracted ray
+  zn=-zmax;
+  for(int i=0;i<dmax;i++){  
+    params6a = {A_ice, GetB(zn), GetC(zn), lvalueRa};
+    params6b = {A_ice, GetB(z0), GetC(z0), lvalueRa};
+    xn=fDnfR(zn,&params6a)-fDnfR(z0,&params6b);
+    checknan=fDnfR(zn,&params6a);
+    if(isnan(checknan)==false && Flip==false){
+      aoutRa<<npnt<<" "<<xn<<" "<<zn<<endl;
+      npnt++;
+    }
+
+    if(isnan(checknan)==false && Flip==true){
+      aoutRa<<npnt<<" "<<x1-xn<<" "<<zn<<endl;
+      npnt++;
+    }
+    
+    zn=zn-h;
+    if(zn<z0){
+      zn=z0;
+      i=dmax+2;
+    }
+  }
+
+}
+
 ////This function is used to measure the amount of time the code takes to run
 typedef unsigned long long timestamp_t;
 static timestamp_t get_timestamp (){
@@ -473,155 +628,26 @@ double *IceRayTracing(double x0, double z0, double x1, double z1){
 
   ////This part of the code can be used if the user wants to plot the individual ray paths. This part of the code prints out the individual ray paths in text files.
   if(StoreRayPaths==true){
+    double lvalues[3];
+    lvalues[0]=lvalueD;
+    lvalues[1]=lvalueR;
+    lvalues[2]=lvalueRa;
 
-    ////Set the name of the text files
-    ofstream aoutD("DirectRay.txt");
-    ofstream aoutR("ReflectedRay.txt");
-    ofstream aoutRa("RefractedRay.txt");
-
-    ////Set the step size for plotting.
-    double h=0.1;
-    ////Set the total steps required for looping over the whole ray path
-    int dmax=-round(lowerz/h);
-    dmax=100000;
-
-    ////Set the values to start the rays from
-    double zn=z1;
-    double xn=0;
-
-    ////Map out the direct ray path
-    int npnt=0;
-    struct fDnfR_params params6a;
-    struct fDnfR_params params6b;
-    struct fDnfR_params params6c;
-    double checknan=0;
-    for(int i=0;i<dmax;i++){
-      params6a = {A_ice, GetB(zn), GetC(zn), lvalueD};
-      params6b = {A_ice, GetB(z0), GetC(z0), lvalueD};
-      xn=fDnfR(zn,&params6a)-fDnfR(z0,&params6b);
-      checknan=fDnfR(zn,&params6a);
-      if(isnan(checknan)==false && Flip==false){
-	aoutD<<npnt<<" "<<xn<<" "<<zn<<endl;;
-	npnt++;
-      }
-
-      if(isnan(checknan)==false && Flip==true){
-	aoutD<<npnt<<" "<<x1-xn<<" "<<zn<<endl;;
-	npnt++;
-      }
-
-      zn=zn-h;
-      if(zn<z0){
-	zn=z0;
-	i=dmax+2;      
-      }  
-    }
-
-    ////Map out the 1st part of the reflected ray
-    zn=z1;
-    npnt=0;
-    for(int i=0;i<dmax;i++){
-      params6a = {A_ice, GetB(zn), -GetC(zn), lvalueR};
-      params6b = {A_ice, GetB(z0), -GetC(z0), lvalueR};
-      params6c = {A_ice, GetB(0.0000001), -GetC(0.0000001), lvalueR};
-      xn=(fDnfR(-zn,&params6a)-fDnfR(-z0,&params6b)+2*fabs(fDnfR(0.0000001,&params6c)-fDnfR(-z0,&params6b)));
-      checknan=fDnfR(-zn,&params6a);
-      if(isnan(checknan)==false && zn<=0 && Flip==false){
-	aoutR<<npnt<<" "<<xn<<" "<<zn<<endl;
-	npnt++;
-      }
-
-      if(isnan(checknan)==false && zn<=0 && Flip==true){
-	aoutR<<npnt<<" "<<x1-xn<<" "<<zn<<endl;
-	npnt++;
-      }
-      
-      zn=zn+h;
-      if(zn>0){
-	i=dmax+2;      
-      }
-    }
-
-    ////Map out the 2nd part of the reflected ray
-    zn=-0.0000001;
-    for(int i=0;i<dmax;i++){  
-      params6a = {A_ice, GetB(zn), GetC(zn), lvalueR};
-      params6b = {A_ice, GetB(z0), GetC(z0), lvalueR};
-      xn=fDnfR(zn,&params6a)-fDnfR(z0,&params6b);
-      checknan=fDnfR(zn,&params6a);
-      if(isnan(checknan)==false && Flip==false){
-	aoutR<<npnt<<" "<<xn<<" "<<zn<<endl;
-	npnt++;
-      }
-      
-      if(isnan(checknan)==false && Flip==true){
-	aoutR<<npnt<<" "<<x1-xn<<" "<<zn<<endl;
-	npnt++;
-      }
-
-      zn=zn-h;
-      if(zn<z0){
-	zn=z0;
-	i=dmax+2;
-      }
-    }
-
-    ////Map out the 1st part of the refracted ray
-    zn=z1;
-    npnt=0;
-    for(int i=0;i<dmax;i++){
-      params6a = {A_ice, GetB(zn), -GetC(zn), lvalueRa};
-      params6b = {A_ice, GetB(z0), -GetC(z0), lvalueRa};
-      params6c = {A_ice, GetB(zmax), -GetC(zmax), lvalueRa};
-      xn=(fDnfR(-zn,&params6a)-fDnfR(-z0,&params6b)+2*fabs(fDnfR(zmax,&params6c)-fDnfR(-z0,&params6b)));
-      checknan=fDnfR(-zn,&params6a);
-      if(isnan(checknan)==false && zn<=0 && Flip==false){
-	aoutRa<<npnt<<" "<<xn<<" "<<zn<<endl;
-	npnt++;
-      }
-
-      if(isnan(checknan)==false && zn<=0 && Flip==true){
-	aoutRa<<npnt<<" "<<x1-xn<<" "<<zn<<endl;
-	npnt++;
-      }
+    double checkzeroes[3];
+    checkzeroes[0]=checkzeroD;
+    checkzeroes[1]=checkzeroR;
+    checkzeroes[2]=checkzeroRa;
     
-      zn=zn+h;
-      if(zn>-zmax){
-	i=dmax+2;      
-      }
-    }
-
-    ////Map out the 2nd part of the refracted ray
-    zn=-zmax;
-    for(int i=0;i<dmax;i++){  
-      params6a = {A_ice, GetB(zn), GetC(zn), lvalueRa};
-      params6b = {A_ice, GetB(z0), GetC(z0), lvalueRa};
-      xn=fDnfR(zn,&params6a)-fDnfR(z0,&params6b);
-      checknan=fDnfR(zn,&params6a);
-      if(isnan(checknan)==false && Flip==false){
-	aoutRa<<npnt<<" "<<xn<<" "<<zn<<endl;
-	npnt++;
-      }
-
-      if(isnan(checknan)==false && Flip==true){
-	aoutRa<<npnt<<" "<<x1-xn<<" "<<zn<<endl;
-	npnt++;
-      }
-    
-      zn=zn-h;
-      if(zn<z0){
-	zn=z0;
-	i=dmax+2;
-      }
-    }
-
-    ////If the Tx and Rx depth were switched then put them back to their original position
-    if(Flip==true){
-      dsw=z0;
-      z0=z1;
-      z1=dsw;
-    }  
+    PlotAndStoreRays(x0,z0,z1,x1,zmax,lvalues,checkzeroes,Flip);
   }
+
+  dsw=0;
+  ////If the Tx and Rx depth were switched then put them back to their original position
+  if(Flip==true){
+    dsw=z0;
+    z0=z1;
+    z1=dsw;
+  }  
   
   ////print out all the output from the code
   //cout<<0<<" ,x0= "<<x0<<" ,z0= "<<z0<<" ,x1= "<<x1<<" ,z1= "<<z1<<" ,langRa= "<<output[2]<<" ,langR= "<<output[1]<<" ,langD= "<<output[0]<<" ,langD-langR= "<<output[0]-output[1]<<" ,langD-langRa= "<<output[0]-output[2]<<" ,RangRa= "<<output[8]<<" ,RangR= "<<output[7]<<" ,RangD= "<<output[6]<<" ,RangR-RangD= "<<output[7]-output[6]<<" ,RangRa-RangD= "<<output[8]-output[6]<<" ,timeRa= "<<output[5]<<" ,timeR= "<<output[4]<<" ,timeD= "<<output[3]<<" ,timeR-timeD= "<<output[4]-output[3]<<" ,timeRa-timeD= "<<output[5]-output[3]<<" ,lvalueRa "<<lvalueRa<<" ,lvalueR "<<lvalueR<<" "<<" ,lvalueD "<<lvalueD<<" ,checkzeroRa "<<checkzeroRa<<" ,checkzeroR "<<checkzeroR<<" ,checkzeroD "<<checkzeroD<<endl;
