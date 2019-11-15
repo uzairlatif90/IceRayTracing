@@ -11,41 +11,37 @@
 
 using namespace std;
 
-const double pi=4.0*atan(1.0); /**< Gives back value of Pi */
-const double spedc=299792458.0; /**< Speed of Light in m/s */
+const double pi=4.0*atan(1.0); /* Gives back value of Pi */
+const double spedc=299792458.0; /* Speed of Light in m/s */
 
-////Set the value of the asymptotic parameter of the refractive index model
+/* Set the value of the asymptotic parameter of the refractive index model */
 const double A_ice=1.78;
 
-////Get the value of the B parameter for the refractive index model
+/* Get the value of the B parameter for the refractive index model */
 double GetB(double z){
-  double zabs=fabs(z);
+  z=fabs(z);
   double B=0;
 
-  //B=-0.375026*(1-(1.0/(1+exp(-(zabs-14.58)/8))))-0.60946*(1.0/(1+exp(-(zabs-14.58)/8)));
-  //B=-0.36375*(1-(1.0/(1+exp(-(zabs-14.58)/8))))-0.60946*(1.0/(1+exp(-(zabs-14.58)/8)));
   B=-0.43;
   return B;
 }
 
-////Get the value of the C parameter for the refractive index model
+/* Get the value of the C parameter for the refractive index model */
 double GetC(double z){
-  double zabs=fabs(z);
+  z=fabs(z);
   double C=0;
   
-  //C=+0.0196219*(1-(1.0/(1+exp(-(zabs-14.58)/8))))+0.017177*(1.0/(1+exp(-(zabs-14.58)/8)));
-  //C=+0.0215883*(1-(1.0/(1+exp(-(zabs-14.58)/8))))+0.017177*(1.0/(1+exp(-(zabs-14.58)/8)));
   C=0.0132;
   return C;
 }
 
-////Get the value of refractive index model for a given depth
+/* Get the value of refractive index model for a given depth  */
 double Getnz(double z){
   z=fabs(z);
   return A_ice+GetB(z)*exp(-GetC(z)*z);
 }
 
-////Use GSL minimiser which uses Brent's Method to find root for a given function. This will be used to find roots wherever it is needed in my code.
+/* Use GSL minimiser which uses Brent's Method to find root for a given function. This will be used to find roots wherever it is needed in my code.  */
 double FindFunctionRoot(gsl_function F,double x_lo, double x_hi)
 {
   int status;
@@ -85,7 +81,7 @@ double FindFunctionRoot(gsl_function F,double x_lo, double x_hi)
   return r;
 }
 
-////Define the function that will be minimized to get the value of the depth of the turning point for a given refracted ray. This function basically requires the value of the L parameter to find the depth of the turning point. This comes from the part of the fDnfR function where sqrt( n(z) - L ). This imposes the constraint then n(z)=L at the turning point of the ray from which we can find zmax.
+/* Define the function that will be minimized to get the value of the depth of the turning point for a given refracted ray. This function basically requires the value of the L parameter to find the depth of the turning point.  This comes from the part of the fDnfR function where sqrt( n(z) - L ). This imposes the constraint then n(z)=L at the turning point of the ray from which we can find zmax. */
 struct Minnz_params { double a,l; };
 double GetMinnz(double x,void *params){
   struct Minnz_params *p= (struct Minnz_params *) params;
@@ -94,7 +90,7 @@ double GetMinnz(double x,void *params){
   return A+GetB(x)*exp(-GetC(x)*x)-L;
 }
 
-////Get the value of the depth of the turning point for the refracted ray
+/* Get the value of the depth of the turning point for the refracted ray */
 double GetZmax(double A, double L){
   gsl_function F1;
   struct Minnz_params params1= {A,L};
@@ -104,7 +100,7 @@ double GetZmax(double A, double L){
   return zmax;
 }
 
-////Analytical solution describing ray paths in ice as function of depth
+/* Analytical solution describing ray paths in ice as function of depth */
 struct fDnfR_params { double a, b, c, l; };
 double fDnfR(double x,void *params){
   
@@ -117,7 +113,7 @@ double fDnfR(double x,void *params){
   return (L/C)*(1.0/sqrt(A*A-L*L))*(C*x-log(A*Getnz(x)-L*L+sqrt(A*A-L*L)*sqrt(pow(Getnz(x),2)-L*L)));;
 }
 
-////Analytical solution describing the ray path in ice as a function of the L parameter
+/* Analytical solution describing the ray path in ice as a function of the L parameter */
 struct fDnfR_L_params { double a, b, c, z; };
 double fDnfR_L(double x,void *params){
   
@@ -131,7 +127,7 @@ double fDnfR_L(double x,void *params){
   return result;
 }
 
-////The function used to calculate ray propogation time in ice
+/* The function used to calculate ray propogation time in ice */
 struct ftimeD_params { double a, b, c, speedc,l; };
 double ftimeD(double x,void *params){
 
@@ -144,7 +140,8 @@ double ftimeD(double x,void *params){
   
   return (1.0/(Speedc*C*sqrt(pow(Getnz(x),2)-L*L)))*(pow(Getnz(x),2)-L*L+(C*x-log(A*Getnz(x)-L*L+sqrt(A*A-L*L)*sqrt(pow(Getnz(x),2)-L*L)))*(A*A*sqrt(pow(Getnz(x),2)-L*L))/sqrt(A*A-L*L) +A*sqrt(pow(Getnz(x),2)-L*L)*log(Getnz(x)+sqrt(pow(Getnz(x),2)-L*L)) );
 }
-////This function is minimised to find the launch angle (or the L parameter) for the direct ray
+
+/* This function is minimised to find the launch angle (or the L parameter) for the direct ray */
 struct fDanfRa_params { double a, z0, x1, z1; };
 double fDa(double x,void *params){
   struct fDanfRa_params *p= (struct fDanfRa_params *) params;
@@ -159,7 +156,7 @@ double fDa(double x,void *params){
   return fDnfR_L(x,&params1a) - fDnfR_L(x,&params1b) - x1;
 }
 
-////This function is minimised to find the launch angle (or the L parameter) for the reflected ray
+/* This function is minimised to find the launch angle (or the L parameter) for the reflected ray */
 double fRa(double x,void *params){
   struct fDanfRa_params *p= (struct fDanfRa_params *) params;
   double A = p->a;
@@ -174,7 +171,7 @@ double fRa(double x,void *params){
   return fDnfR_L(x,&params1a) - fDnfR_L(x,&params1b) - 2*( fDnfR_L(x,&params1c) - fDnfR_L(x,&params1b) ) - x1;
 }
 
-////This function is minimised to find the launch angle (or the L parameter) for the refracted ray
+/* This function is minimised to find the launch angle (or the L parameter) for the refracted ray */
 double fRaa(double x,void *params){
   struct fDanfRa_params *p= (struct fDanfRa_params *) params;
   double A = p->a;
@@ -191,27 +188,12 @@ double fRaa(double x,void *params){
   return fDnfR_L(x,&params1a) - fDnfR_L(x,&params1b) - 2*( fDnfR_L(x,&params1c) - fDnfR_L(x,&params1b) ) - x1;
 }
 
-////(Not being used right now) This function can be minimised to calculate the angle of reciept (from the vertical) on the Rx antenna and the hit point of the ray on the ice surface given a ray incident angle. This is used to calculate at what distance a given a ray should hit the ice if we know the incoming zenith angle and the depth of the Rx antenna.
-// struct fdxdz_params { double a, b, c, lang, z0,z1; };
-// double fdxdz(double x,void *params){
-  
-//   struct fdxdz_params *p= (struct fdxdz_params *) params;
-//   double A = p->a;
-//   double B = p->b;
-//   double C = p->c;
-//   double Lang = p->lang;
-//   double Z0 = p->z0;
-//   double Z1 = p->z1;
-
-//   return tan(asin( (Getnz(Z0)*sin(x))/Getnz(Z1) ) ) - tan(Lang);
-// }
-
-////This functions works fot the Direct ray and gives you back the launch angle, receive angle and propagation time of the ray together with values of the L parameter and checkzero variable. checkzero variable checks how close the minimiser came to 0. 0 is perfect and less than 0.5 is pretty good. more than that should not be acceptable.
+/* This functions works for the Direct ray and gives you back the launch angle, receive angle and propagation time of the ray together with values of the L parameter and checkzero variable. checkzero variable checks how close the minimiser came to 0. 0 is perfect and less than 0.5 is pretty good. more than that should not be acceptable. */
 double* GetDirectRayPar(double z0, double x1, double z1){
 
   double *output=new double[5];
   
-  ////My raytracer can only work the Tx is below the Rx. If the Tx is higher than the Rx than we need to flip the depths to allow for raytracing and then we will flip them back later at the end
+  /* My raytracer can only work the Tx is below the Rx. If the Tx is higher than the Rx than we need to flip the depths to allow for raytracing and then we will flip them back later at the end */
   bool Flip=false;
   double dsw=z0;
   if(z0>z1){
@@ -220,53 +202,53 @@ double* GetDirectRayPar(double z0, double x1, double z1){
     Flip=true;
   }
   
-  ////First we setup the fDa function that will be minimised to get the launch angle (or the L parameter) for the direct ray.
+  /* First we setup the fDa function that will be minimised to get the launch angle (or the L parameter) for the direct ray. */
   gsl_function F1;
   struct fDanfRa_params params1= {A_ice, z0, x1, z1};
   F1.function = &fDa;
   F1.params = &params1;
 
-  ////In my raytracing solution given in the function fDnfR the launch angle (or the L parameter) has limit placed on it by this part in the solution sqrt( n(z)^2 - L^2) . This sqrt cannot be negative for both z0 and z1 and this sets the upper limit in our minimisation to get the launch angle (or the L parameter). Here I am basically setting the upper limit as GSL requires that my function is well behaved on the upper and lower bounds I give it for minimisation. 
+  /* In my raytracing solution given in the function fDnfR the launch angle (or the L parameter) has limit placed on it by this part in the solution sqrt( n(z)^2 - L^2) . This sqrt cannot be negative for both z0 and z1 and this sets the upper limit in our minimisation to get the launch angle (or the L parameter). Here I am basically setting the upper limit as GSL requires that my function is well behaved on the upper and lower bounds I give it for minimisation. */ 
   double UpperLimitL=Getnz(z0)*sin(90*(pi/180.0));
   if(pow(Getnz(z1),2)-pow(UpperLimitL,2)<0){
     UpperLimitL=Getnz(z1);
   }
 
-  ////Do the minimisation and get the value of the L parameter and the launch angle and then verify to see that the value of L that we got was actually a root of fDa function.
+  /* Do the minimisation and get the value of the L parameter and the launch angle and then verify to see that the value of L that we got was actually a root of fDa function. */
   double lvalueD=FindFunctionRoot(F1,0.0000001,UpperLimitL);
   double LangD=asin(lvalueD/Getnz(z0))*(180.0/pi);
   double checkzeroD=fDa(lvalueD,&params1);
 
-  ////Get the propagation time for the direct ray using the ftimeD function after we have gotten the value of the L parameter.
+  /* Get the propagation time for the direct ray using the ftimeD function after we have gotten the value of the L parameter. */
   struct ftimeD_params params2a = {A_ice, GetB(z0), -GetC(z0), spedc,lvalueD};
   struct ftimeD_params params2b = {A_ice, GetB(z1), -GetC(z1), spedc,lvalueD};
 
-  ////we do the subtraction because we are measuring the time taken between the Tx and Rx positions
+  /* we do the subtraction because we are measuring the time taken between the Tx and Rx positions */
   double timeD=+ftimeD(-z0,&params2a) - ftimeD(-z1,&params2b);
 
-  ////Setup the function that will be used to calculate the angle of reception for all the rays
+  /* Setup the function that will be used to calculate the angle of reception for all the rays */
   gsl_function F5;
   struct fDnfR_params params5a = {A_ice, GetB(z1), -GetC(z1), lvalueD};
   double result, abserr;
   F5.function = &fDnfR;
 
-  ////Calculate the recieve angle for direc rays by calculating the derivative of the function at the Rx position
+  /* Calculate the recieve angle for direc rays by calculating the derivative of the function at the Rx position */
   F5.params = &params5a;
   gsl_deriv_central (&F5, -z1, 1e-8, &result, &abserr);
   double RangD=atan(result)*(180.0/pi);
 
-  ////When the Tx and Rx are at the same depth my function struggles to find a ray between them when they are very close to each other. In that case the ray is pretty much like a straight line.
+  /* When the Tx and Rx are at the same depth my function struggles to find a ray between them when they are very close to each other. In that case the ray is pretty much like a straight line. */
   if(z1==z0 && isnan(RangD)==true){
     RangD=180-LangD;
   }
   
-  ////This sometimes happens that when the Rx is very close to the peak point (or the turning point) of the ray then its hard to calculate the derivative around that area since the solution blows up around that area. therefore this is a good approximation.
+  /* This sometimes happens that when the Rx is very close to the peak point (or the turning point) of the ray then its hard to calculate the derivative around that area since the solution blows up around that area. therefore this is a good approximation. */
   if(z1!=z0 && isnan(RangD)==true){
     RangD=90;
   }
-
-    dsw=0;
-  ////If the Tx and Rx depth were switched then put them back to their original position
+  
+  dsw=0;
+  /* If the Tx and Rx depth were switched then put them back to their original position */
   if(Flip==true){
     dsw=z0;
     z0=z1;
@@ -279,7 +261,7 @@ double* GetDirectRayPar(double z0, double x1, double z1){
   output[3]=lvalueD;
   output[4]=checkzeroD;
 
-  ////If the flip case is true where we flipped Rx and Tx depths to trace rays then make sure everything is switched back before we give the output to the user.
+  /* If the flip case is true where we flipped Rx and Tx depths to trace rays then make sure everything is switched back before we give the output to the user. */
   if(Flip==true){
     output[0]=180-LangD;
     output[1]=180-RangD;
@@ -288,12 +270,12 @@ double* GetDirectRayPar(double z0, double x1, double z1){
   return output;
 }
 
-////This functions works fot the Reflected ray and gives you back the launch angle, receive angle and propagation times (of the whole ray and the two direct rays that make it up) together with values of the L parameter and checkzero variable. checkzero variable checks how close the minimiser came to 0. 0 is perfect and less than 0.5 is pretty good. more than that should not be acceptable. 
+/* This functions works for the Reflected ray and gives you back the launch angle, receive angle and propagation times (of the whole ray and the two direct rays that make it up) together with values of the L parameter and checkzero variable. checkzero variable checks how close the minimiser came to 0. 0 is perfect and less than 0.5 is pretty good. more than that should not be acceptable. */
 double *GetReflectedRayPar(double z0, double x1 ,double z1){
 
   double *output=new double[7];
 
-  ////My raytracer can only work the Tx is below the Rx. If the Tx is higher than the Rx than we need to flip the depths to allow for raytracing and then we will flip them back later at the end
+  /* My raytracer can only work the Tx is below the Rx. If the Tx is higher than the Rx than we need to flip the depths to allow for raytracing and then we will flip them back later at the end */
   bool Flip=false;
   double dsw=z0;
   if(z0>z1){
@@ -302,33 +284,33 @@ double *GetReflectedRayPar(double z0, double x1 ,double z1){
     Flip=true;
   }
   
-  ////First we setup the fRa function that will be minimised to get the launch angle (or the L parameter) for the reflected ray.
+  /* First we setup the fRa function that will be minimised to get the launch angle (or the L parameter) for the reflected ray. */
   gsl_function F3;
   struct fDanfRa_params params3= {A_ice, z0, x1, z1};
   F3.function = &fRa;
   F3.params = &params3;
 
-  ////Set the upper limit for the minimisation to get the value of the launch angle (or the L parameter).  In the reflected case we set the upper limit at depth=0 m . I do not go exactly to 0 m depth since my solution blows up at the peak point of the ray. So just to be cautious I stay close to it but do not go exactly to that point.
+  /* Set the upper limit for the minimisation to get the value of the launch angle (or the L parameter).  In the reflected case we set the upper limit at depth=0 m . I do not go exactly to 0 m depth since my solution blows up at the peak point of the ray. So just to be cautious I stay close to it but do not go exactly to that point. */
   double UpperLimitL=Getnz(0.0000001);
 
-  ////Do the minimisation and get the value of the L parameter and the launch angle and then verify to see that the value of L that we got was actually a root of fRa function.
+  /* Do the minimisation and get the value of the L parameter and the launch angle and then verify to see that the value of L that we got was actually a root of fRa function. */
   double lvalueR=FindFunctionRoot(F3,0.0000001,UpperLimitL);
   double LangR=asin(lvalueR/Getnz(z0))*(180.0/pi);
   double checkzeroR=fRa(lvalueR,&params3); 
 
-  ////Get the propagation time for the reflected ray using the ftimeD function after we have gotten the value of the L parameter.
+  /* Get the propagation time for the reflected ray using the ftimeD function after we have gotten the value of the L parameter. */
   struct ftimeD_params params3a = {A_ice, GetB(z0), GetC(z0), spedc,lvalueR};
   struct ftimeD_params params3b = {A_ice, GetB(z1), GetC(z1), spedc,lvalueR};
   struct ftimeD_params params3c = {A_ice, GetB(0.0000001), GetC(0.0000001), spedc,lvalueR};
 
-  ////we do the subtraction because we are measuring the time taken between the Tx and Rx positions. In the reflected case we basically have two direct rays 1) from Tx to surface 2) from surface to Rx.
+  /* we do the subtraction because we are measuring the time taken between the Tx and Rx positions. In the reflected case we basically have two direct rays 1) from Tx to surface 2) from surface to Rx. */
   double timeR= 2*ftimeD(-0.0000001,&params3c) - ftimeD(z0,&params3a) - ftimeD(z1,&params3b);
 
-  ////Also get the time for the two individual direct rays separately
+  /* Also get the time for the two individual direct rays separately */
   double timeR1=ftimeD(-0.0000001,&params3c) - ftimeD(z0,&params3a);
   double timeR2=ftimeD(-0.0000001,&params3c) - ftimeD(z1,&params3b);
 
-  ////flip the times back if the original positions were flipped
+  /* flip the times back if the original positions were flipped */
   if(Flip==true){
     double dumR=timeR2;
     timeR2=timeR1;
@@ -337,29 +319,29 @@ double *GetReflectedRayPar(double z0, double x1 ,double z1){
   timeR1=timeR1;
   timeR2=timeR2;
 
-  ////Setup the function that will be used to calculate the angle of reception for all the rays
+  /* Setup the function that will be used to calculate the angle of reception for all the rays */
   gsl_function F5;
   struct fDnfR_params params5b = {A_ice, GetB(z1), GetC(z1), lvalueR};
   double result, abserr;
   F5.function = &fDnfR;
   
-  ////Calculate the recieve angle for reflected ray by calculating the derivative of the function at the Rx position
+  /* Calculate the recieve angle for reflected ray by calculating the derivative of the function at the Rx position */
   F5.params = &params5b;
   gsl_deriv_central (&F5, z1, 1e-8, &result, &abserr);
   double RangR=180-atan(result)*(180.0/pi);
 
-  ////When the Tx and Rx are at the same depth my function struggles to find a ray between them when they are very close to each other. In that case the ray is pretty much like a straight line.
+  /* When the Tx and Rx are at the same depth my function struggles to find a ray between them when they are very close to each other. In that case the ray is pretty much like a straight line. */
   if(z1==z0 && isnan(RangR)==true){
     RangR=180-LangR;
   }
 
-  ////This sometimes happens that when the Rx is very close to the peak point (or the turning point) of the ray then its hard to calculate the derivative around that area since the solution blows up around that area. therefore this is a good approximation.
+  /* This sometimes happens that when the Rx is very close to the peak point (or the turning point) of the ray then its hard to calculate the derivative around that area since the solution blows up around that area. therefore this is a good approximation. */
   if(z1!=z0 && isnan(RangR)==true){
     RangR=90;
   }
 
   dsw=0;
-  ////If the Tx and Rx depth were switched then put them back to their original position
+  /* If the Tx and Rx depth were switched then put them back to their original position */
   if(Flip==true){
     dsw=z0;
     z0=z1;
@@ -374,7 +356,7 @@ double *GetReflectedRayPar(double z0, double x1 ,double z1){
   output[5]=timeR1;
   output[6]=timeR2;
 
-  ////If the flip case is true where we flipped Rx and Tx depths to trace rays then make sure everything is switched back before we give the output to the user.
+  /* If the flip case is true where we flipped Rx and Tx depths to trace rays then make sure everything is switched back before we give the output to the user. */
   if(Flip==true){
     output[0]=180-LangR;
     output[1]=180-RangR;
@@ -383,12 +365,12 @@ double *GetReflectedRayPar(double z0, double x1 ,double z1){
   return output;
 }
 
-////This functions works fot the Refracted ray and gives you back the launch angle, receive angle and propagation times (of the whole ray and the two direct rays that make it up) together with values of the L parameter and checkzero variable. checkzero variable checks how close the minimiser came to 0. 0 is perfect and less than 0.5 is pretty good. more than that should not be acceptable. It requires the launch angle of the reflected ray as an input. 
+/* This functions works for the Refracted ray and gives you back the launch angle, receive angle and propagation times (of the whole ray and the two direct rays that make it up) together with values of the L parameter and checkzero variable. checkzero variable checks how close the minimiser came to 0. 0 is perfect and less than 0.5 is pretty good. more than that should not be acceptable. It requires the launch angle of the reflected ray as an input. */
 double *GetRefractedRayPar(double z0, double x1 ,double z1, double LangR){
 
   double *output=new double[8];
 
-   ////My raytracer can only work the Tx is below the Rx. If the Tx is higher than the Rx than we need to flip the depths to allow for raytracing and then we will flip them back later at the end
+  /* My raytracer can only work the Tx is below the Rx. If the Tx is higher than the Rx than we need to flip the depths to allow for raytracing and then we will flip them back later at the end */
   bool Flip=false;
   double dsw=z0;
   if(z0>z1){
@@ -397,7 +379,7 @@ double *GetRefractedRayPar(double z0, double x1 ,double z1, double LangR){
     Flip=true;
   }
   
-  ////Set up all the variables that will be used to get the parameters for the refracted ray
+  /* Set up all the variables that will be used to get the parameters for the refracted ray */
   double lvalueR=sin(LangR*(180/pi))*Getnz(z0);
   double lvalueRa=0;
   double LangRa=0;
@@ -410,21 +392,21 @@ double *GetRefractedRayPar(double z0, double x1 ,double z1, double LangR){
   double RangRa=0;
   double zmax=10;
   
-  ////Set the upper limit for the minimisation to get the value of the launch angle (or the L parameter).  In the refracted case we set the upper limit at depth of z1 which is what we also do for the direct ray case.
+  /* Set the upper limit for the minimisation to get the value of the launch angle (or the L parameter).  In the refracted case we set the upper limit at depth of z1 which is what we also do for the direct ray case. */
   double UpperLimitL=Getnz(z1);
   
-  ////First we setup the fRa function that will be minimised to get the launch angle (or the L parameter) for the refracted ray.
+  /* First we setup the fRa function that will be minimised to get the launch angle (or the L parameter) for the refracted ray. */
   gsl_function F4;
   struct fDanfRa_params params4= {A_ice, z0, x1, z1};
   F4.function = &fRaa;
   F4.params = &params4;
 
-  ////Do the minimisation and get the value of the L parameter and the launch angle and then verify to see that the value of L that we got was actually a root of fRaa function. The thing to note here is the lower limit of the minimisation function is set to the L value corresponding to the reflected ray launch angle. Since we know the refracted ray always has bigger launch angle the reflected ray this reduces our range and makes the function more efficient at finding the refracted ray launch angle.
+  /* Do the minimisation and get the value of the L parameter and the launch angle and then verify to see that the value of L that we got was actually a root of fRaa function. The thing to note here is the lower limit of the minimisation function is set to the L value corresponding to the reflected ray launch angle. Since we know the refracted ray always has bigger launch angle the reflected ray this reduces our range and makes the function more efficient at finding the refracted ray launch angle. */
   lvalueRa=FindFunctionRoot(F4,Getnz(z0)*sin((LangR*(pi/180.0))),UpperLimitL);
   LangRa=asin(lvalueRa/Getnz(z0))*(180.0/pi);
   checkzeroRa=fRaa(lvalueRa,&params4);
 
-  ////If the above strategy did not work then we start decreasing the reflected ray launch angle in steps of 5 degree and increase our range for minimisation to find the launch angle (or the L parameter). Sometimes the refracted and reflected rays come out to be the same in that case also I forced my solution to try harder by changing the minimisation range.
+  /* If the above strategy did not work then we start decreasing the reflected ray launch angle in steps of 5 degree and increase our range for minimisation to find the launch angle (or the L parameter). Sometimes the refracted and reflected rays come out to be the same in that case also I forced my solution to try harder by changing the minimisation range. */
   double iangstep=5;
   while( (isnan(checkzeroRa)==true || fabs(checkzeroRa)>0.5 || fabs(lvalueRa-lvalueR)<pow(10,-9)) && LangR>iangstep && iangstep<90){
     //cout<<"2nd try to get Refracted ray "<<isnan(checkzeroRa)<<" "<<fabs(checkzeroRa)<<endl;
@@ -434,30 +416,30 @@ double *GetRefractedRayPar(double z0, double x1 ,double z1, double LangR){
     iangstep=iangstep+5;
   }///end the second attempt    
 
-  ////If we still did not find a refracted ray then set the check zero parameter to 1000 to make sure my code does not output this as a possible solution
+  /* If we still did not find a refracted ray then set the check zero parameter to 1000 to make sure my code does not output this as a possible solution */
   if(isnan(checkzeroRa)==true){
     checkzeroRa=1000;
   }
 
-  ////If we did find a possible refracted ray then now we need to find the depth at which the ray turns back down without hitting the surface.
+  /* If we did find a possible refracted ray then now we need to find the depth at which the ray turns back down without hitting the surface. */
   zmax=GetZmax(A_ice,lvalueRa)+0.0000001;
 
-  ////If the turning point depth also came out to be zero then now we are sure that there is no refracted ray
+  /* If the turning point depth also came out to be zero then now we are sure that there is no refracted ray */
   if(zmax==0.0000001){
     checkzeroRa=1000;
   }
 
-  ////Set parameters for ftimeD function to get the propagation time for the refracted ray
+  /* Set parameters for ftimeD function to get the propagation time for the refracted ray */
   struct ftimeD_params params4a = {A_ice, GetB(z0), GetC(z0), spedc,lvalueRa};
   struct ftimeD_params params4b = {A_ice, GetB(z1), GetC(z1), spedc,lvalueRa};
   struct ftimeD_params params4c = {A_ice, GetB(zmax), GetC(zmax), spedc,lvalueRa};
 
-  ////This if condition checks if the function has not gone crazy and given us a turning point of the ray which is lower than both Tx and Rx and is shallower in depth than both
+  /* This if condition checks if the function has not gone crazy and given us a turning point of the ray which is lower than both Tx and Rx and is shallower in depth than both */
   if((z0<-zmax || zmax<-z1)){
-    ////we do the subtraction because we are measuring the time taken between the Tx and Rx positions. In the refracted case we basically have two direct rays 1) from Tx to turning point 2) from turning point to Rx.
+    /* we do the subtraction because we are measuring the time taken between the Tx and Rx positions. In the refracted case we basically have two direct rays 1) from Tx to turning point 2) from turning point to Rx. */
     raytime=2*ftimeD(zmax,&params4c) - ftimeD(z0,&params4a) - ftimeD(z1,&params4b);
 
-    ////Also get the time for the two individual direct rays separately
+    /* Also get the time for the two individual direct rays separately */
     timeRa1=ftimeD(zmax,&params4c) - ftimeD(z0,&params4a);
     timeRa2=ftimeD(zmax,&params4c) - ftimeD(z1,&params4b);
     if(Flip==true){
@@ -470,29 +452,29 @@ double *GetRefractedRayPar(double z0, double x1 ,double z1, double LangR){
   }
   timeRa=raytime;
 
-  ////Setup the function that will be used to calculate the angle of reception for all the rays
+  /* Setup the function that will be used to calculate the angle of reception for all the rays */
   gsl_function F5;
   struct fDnfR_params params5c = {A_ice, GetB(z1), GetC(z1), lvalueRa};
   double result, abserr;
   F5.function = &fDnfR;
     
-  ////Calculate the recieve angle for refacted ray by calculating the derivative of the function at the Rx position
+  /* Calculate the recieve angle for refacted ray by calculating the derivative of the function at the Rx position */
   F5.params = &params5c;
   gsl_deriv_central (&F5, z1, 1e-8, &result, &abserr);
   RangRa=180-atan(result)*(180.0/pi);
 
-  ////When the Tx and Rx are at the same depth my function struggles to find a ray between them when they are very close to each other. In that case the ray is pretty much like a straight line.
+  /* When the Tx and Rx are at the same depth my function struggles to find a ray between them when they are very close to each other. In that case the ray is pretty much like a straight line. */
   if(z1==z0 && isnan(RangRa)==true){
     RangRa=180-LangRa;
   }
 
-  ////This sometimes happens that when the Rx is very close to the peak point (or the turning point) of the ray then its hard to calculate the derivative around that area since the solution blows up around that area. therefore this is a good approximation.
+  /* This sometimes happens that when the Rx is very close to the peak point (or the turning point) of the ray then its hard to calculate the derivative around that area since the solution blows up around that area. therefore this is a good approximation. */
   if(z1!=z0 && isnan(RangRa)==true){
     RangRa=90;
   }
 
   dsw=0;
-  ////If the Tx and Rx depth were switched then put them back to their original position
+  /* If the Tx and Rx depth were switched then put them back to their original position */
   if(Flip==true){
     dsw=z0;
     z0=z1;
@@ -508,7 +490,7 @@ double *GetRefractedRayPar(double z0, double x1 ,double z1, double LangR){
   output[6]=timeRa2;
   output[7]=zmax;
 
-  ////If the flip case is true where we flipped Rx and Tx depths to trace rays then make sure everything is switched back before we give the output to the user.
+  /* If the flip case is true where we flipped Rx and Tx depths to trace rays then make sure everything is switched back before we give the output to the user. */
   if(Flip==true){
     output[0]=180-LangRa;
     output[1]=180-RangRa;
@@ -517,10 +499,10 @@ double *GetRefractedRayPar(double z0, double x1 ,double z1, double LangR){
   return output;
 }
 
-////This function returns the x and z values for the full Direct ray path in a Ntuple and also prints out the ray path in a text file
-TNtuple* GetFullDirectRayPath(double z0, double x1, double z1,double lvalueD){
+/* This function returns the x and z values for the full Direct ray path in a TGraph and also prints out the ray path in a text file */
+TGraph* GetFullDirectRayPath(double z0, double x1, double z1,double lvalueD){
 
-  ////My raytracer can only work the Tx is below the Rx. If the Tx is higher than the Rx than we need to flip the depths to allow for raytracing and then we will flip them back later at the end
+  /* My raytracer can only work the Tx is below the Rx. If the Tx is higher than the Rx than we need to flip the depths to allow for raytracing and then we will flip them back later at the end */
   bool Flip=false;
   double dsw=z0;
   if(z0>z1){
@@ -529,36 +511,36 @@ TNtuple* GetFullDirectRayPath(double z0, double x1, double z1,double lvalueD){
     Flip=true;
   }
    
-  ////Set the name of the text files
+  /* Set the name of the text files */
   ofstream aoutD("DirectRay.txt");
-  ////Set the step size for plotting.
+  /* Set the step size for plotting */
   double h=0.1;
-  ////Set the total steps required for looping over the whole ray path
+  /* Set the total steps required for looping over the whole ray path */
   int dmax=100000;
-  ////Set the values to start the rays from
+  /* Set the values to start the rays from */
   double zn=z1;
   double xn=0;
 
-  ////Map out the direct ray path
+  /* Map out the direct ray path */
   int npnt=0;
   double checknan=0;
   struct fDnfR_params params6a;
   struct fDnfR_params params6b;
   
-  TNtuple *nt1=new TNtuple("nt1","nt1","x:z");
+  TGraph *gr1=new TGraph();
   for(int i=0;i<dmax;i++){
     params6a = {A_ice, GetB(zn), GetC(zn), lvalueD};
     params6b = {A_ice, GetB(z0), GetC(z0), lvalueD};
     xn=fDnfR(zn,&params6a)-fDnfR(z0,&params6b);
     checknan=fDnfR(zn,&params6a);
     if(isnan(checknan)==false && Flip==false){
-      nt1->Fill(xn,zn);
+      gr1->SetPoint(npnt,xn,zn);
       aoutD<<npnt<<" "<<xn<<" "<<zn<<endl;;
       npnt++;
     }
 
     if(isnan(checknan)==false && Flip==true){
-      nt1->Fill(x1-xn,zn);
+      gr1->SetPoint(npnt,x1-xn,zn);
       aoutD<<npnt<<" "<<x1-xn<<" "<<zn<<endl;;
       npnt++;
     }
@@ -571,21 +553,21 @@ TNtuple* GetFullDirectRayPath(double z0, double x1, double z1,double lvalueD){
   }
 
   dsw=0;
-  ////If the Tx and Rx depth were switched then put them back to their original position
+  /* If the Tx and Rx depth were switched then put them back to their original position */
   if(Flip==true){
     dsw=z0;
     z0=z1;
     z1=dsw;
   }
   
-  return nt1;
+  return gr1;
 
 }
 
-////This function returns the x and z values for the full Reflected ray path in a Ntuple and also prints out the ray path in a text file
-TNtuple* GetFullReflectedRayPath(double z0, double x1, double z1,double lvalueR){
+/* This function returns the x and z values for the full Reflected ray path in a TGraph and also prints out the ray path in a text file */
+TGraph* GetFullReflectedRayPath(double z0, double x1, double z1,double lvalueR){
 
-  ////My raytracer can only work the Tx is below the Rx. If the Tx is higher than the Rx than we need to flip the depths to allow for raytracing and then we will flip them back later at the end
+  /* My raytracer can only work the Tx is below the Rx. If the Tx is higher than the Rx than we need to flip the depths to allow for raytracing and then we will flip them back later at the end */
   bool Flip=false;
   double dsw=z0;
   if(z0>z1){
@@ -594,25 +576,25 @@ TNtuple* GetFullReflectedRayPath(double z0, double x1, double z1,double lvalueR)
     Flip=true;
   }
   
-  ////Set the name of the text files
+  /* Set the name of the text files */
   ofstream aoutR("ReflectedRay.txt");
-  ////Set the step size for plotting.
+  /* Set the step size for plotting. */
   double h=0.1;
-  ////Set the total steps required for looping over the whole ray path
+  /* Set the total steps required for looping over the whole ray path */
   int dmax=100000;
-  ////Set the values to start the rays from
+  /* Set the values to start the rays from */
   double zn=z1;
   double xn=0;
   
-  ////Map out the direct ray path
+  /* Map out the direct ray path */
   int npnt=0;
   double checknan=0;  
   struct fDnfR_params params6a;
   struct fDnfR_params params6b;
   struct fDnfR_params params6c;
 
-  ////Map out the 1st part of the reflected ray
-  TNtuple *nt2=new TNtuple("nt2","nt2","x:z");
+  /* Map out the 1st part of the reflected ray */
+  TGraph *gr2=new TGraph();
   for(int i=0;i<dmax;i++){
     params6a = {A_ice, GetB(zn), -GetC(zn), lvalueR};
     params6b = {A_ice, GetB(z0), -GetC(z0), lvalueR};
@@ -620,13 +602,13 @@ TNtuple* GetFullReflectedRayPath(double z0, double x1, double z1,double lvalueR)
     xn=(fDnfR(-zn,&params6a)-fDnfR(-z0,&params6b)+2*fabs(fDnfR(0.0000001,&params6c)-fDnfR(-z0,&params6b)));
     checknan=fDnfR(-zn,&params6a);
     if(isnan(checknan)==false && zn<=0 && Flip==false){
-      nt2->Fill(xn,zn);
+      gr2->SetPoint(npnt,xn,zn);
       aoutR<<npnt<<" "<<xn<<" "<<zn<<endl;
       npnt++;
     }
 
     if(isnan(checknan)==false && zn<=0 && Flip==true){
-      nt2->Fill(x1-xn,zn);
+      gr2->SetPoint(npnt,x1-xn,zn);
       aoutR<<npnt<<" "<<x1-xn<<" "<<zn<<endl;
       npnt++;
     }
@@ -637,7 +619,7 @@ TNtuple* GetFullReflectedRayPath(double z0, double x1, double z1,double lvalueR)
     }
   }
 
-  ////Map out the 2nd part of the reflected ray
+  /* Map out the 2nd part of the reflected ray */
   zn=-0.0000001;
   for(int i=0;i<dmax;i++){  
     params6a = {A_ice, GetB(zn), GetC(zn), lvalueR};
@@ -645,13 +627,13 @@ TNtuple* GetFullReflectedRayPath(double z0, double x1, double z1,double lvalueR)
     xn=fDnfR(zn,&params6a)-fDnfR(z0,&params6b);
     checknan=fDnfR(zn,&params6a);
     if(isnan(checknan)==false && Flip==false){
-      nt2->Fill(xn,zn);
+      gr2->SetPoint(npnt,xn,zn);
       aoutR<<npnt<<" "<<xn<<" "<<zn<<endl;
       npnt++;
     }
       
     if(isnan(checknan)==false && Flip==true){
-      nt2->Fill(x1-xn,zn);
+      gr2->SetPoint(npnt,x1-xn,zn);
       aoutR<<npnt<<" "<<x1-xn<<" "<<zn<<endl;
       npnt++;
     }
@@ -664,21 +646,21 @@ TNtuple* GetFullReflectedRayPath(double z0, double x1, double z1,double lvalueR)
   }
 
   dsw=0;
-  ////If the Tx and Rx depth were switched then put them back to their original position
+  /* If the Tx and Rx depth were switched then put them back to their original position */
   if(Flip==true){
     dsw=z0;
     z0=z1;
     z1=dsw;
   }
   
-  return nt2;
+  return gr2;
 
 }
 
-////This function returns the x and z values for the full Refracted ray path in a Ntuple and also prints out the ray path in a text file
-TNtuple* GetFullRefractedRayPath(double z0, double x1, double z1, double zmax, double lvalueRa){
+/* This function returns the x and z values for the full Refracted ray path in a TGraph and also prints out the ray path in a text file */
+TGraph* GetFullRefractedRayPath(double z0, double x1, double z1, double zmax, double lvalueRa){
 
-  ////My raytracer can only work the Tx is below the Rx. If the Tx is higher than the Rx than we need to flip the depths to allow for raytracing and then we will flip them back later at the end
+  /* My raytracer can only work the Tx is below the Rx. If the Tx is higher than the Rx than we need to flip the depths to allow for raytracing and then we will flip them back later at the end */
   bool Flip=false;
   double dsw=z0;
   if(z0>z1){
@@ -687,25 +669,25 @@ TNtuple* GetFullRefractedRayPath(double z0, double x1, double z1, double zmax, d
     Flip=true;
   }
   
-  ////Set the name of the text files
+  /* Set the name of the text files */
   ofstream aoutRa("RefractedRay.txt");
-  ////Set the step size for plotting.
+  /* Set the step size for plotting. */
   double h=0.1;
-  ////Set the total steps required for looping over the whole ray path
+  /* Set the total steps required for looping over the whole ray path */
   int dmax=100000;
-  ////Set the values to start the rays from
+  /* Set the values to start the rays from */
   double zn=z1;
   double xn=0;
 
-  ////Map out the direct ray path
+  /* Map out the direct ray path */
   int npnt=0;
   double checknan=0;
   struct fDnfR_params params6a;
   struct fDnfR_params params6b;
   struct fDnfR_params params6c;  
 
-  ////Map out the 1st part of the refracted ray
-  TNtuple *nt3=new TNtuple("nt3","nt3","x:z");    
+  /* Map out the 1st part of the refracted ray */
+  TGraph *gr3=new TGraph();    
   for(int i=0;i<dmax;i++){
     params6a = {A_ice, GetB(zn), -GetC(zn), lvalueRa};
     params6b = {A_ice, GetB(z0), -GetC(z0), lvalueRa};
@@ -713,13 +695,13 @@ TNtuple* GetFullRefractedRayPath(double z0, double x1, double z1, double zmax, d
     xn=(fDnfR(-zn,&params6a)-fDnfR(-z0,&params6b)+2*fabs(fDnfR(zmax,&params6c)-fDnfR(-z0,&params6b)));
     checknan=fDnfR(-zn,&params6a);
     if(isnan(checknan)==false && zn<=0 && Flip==false){
-      nt3->Fill(xn,zn);
+      gr3->SetPoint(npnt,xn,zn);
       aoutRa<<npnt<<" "<<xn<<" "<<zn<<endl;
       npnt++;
     }
 
     if(isnan(checknan)==false && zn<=0 && Flip==true){
-      nt3->Fill(x1-xn,zn);
+      gr3->SetPoint(npnt,x1-xn,zn);
       aoutRa<<npnt<<" "<<x1-xn<<" "<<zn<<endl;
       npnt++;
     }
@@ -730,7 +712,7 @@ TNtuple* GetFullRefractedRayPath(double z0, double x1, double z1, double zmax, d
     }
   }
 
-  ////Map out the 2nd part of the refracted ray
+  /* Map out the 2nd part of the refracted ray */
   zn=-zmax;
   for(int i=0;i<dmax;i++){  
     params6a = {A_ice, GetB(zn), GetC(zn), lvalueRa};
@@ -738,13 +720,13 @@ TNtuple* GetFullRefractedRayPath(double z0, double x1, double z1, double zmax, d
     xn=fDnfR(zn,&params6a)-fDnfR(z0,&params6b);
     checknan=fDnfR(zn,&params6a);
     if(isnan(checknan)==false && Flip==false){
-      nt3->Fill(xn,zn);
+      gr3->SetPoint(npnt,xn,zn);
       aoutRa<<npnt<<" "<<xn<<" "<<zn<<endl;
       npnt++;
     }
 
     if(isnan(checknan)==false && Flip==true){
-      nt3->Fill(x1-xn,zn);
+      gr3->SetPoint(npnt,x1-xn,zn);
       aoutRa<<npnt<<" "<<x1-xn<<" "<<zn<<endl;
       npnt++;
     }
@@ -757,18 +739,18 @@ TNtuple* GetFullRefractedRayPath(double z0, double x1, double z1, double zmax, d
   }
 
   dsw=0;
-  ////If the Tx and Rx depth were switched then put them back to their original position
+  /* If the Tx and Rx depth were switched then put them back to their original position */
   if(Flip==true){
     dsw=z0;
     z0=z1;
     z1=dsw;
   }
   
-  return nt3;
+  return gr3;
   
 }
 
-////function for plotting and storing the rays
+/* function for plotting and storing all the rays */
 void PlotAndStoreRays(double x0,double z0, double z1, double x1, double zmax, double lvalues[3], double checkzeroes[3]){
   
   double lvalueD=lvalues[0];
@@ -778,31 +760,31 @@ void PlotAndStoreRays(double x0,double z0, double z1, double x1, double zmax, do
   double checkzeroD=checkzeroes[0];
   double checkzeroR=checkzeroes[1];
   double checkzeroRa=checkzeroes[2]; 
+
+  TMultiGraph *mg=new TMultiGraph();
   
-  TNtuple *nt1=GetFullDirectRayPath(z0,x1,z1,lvalueD);
-  TNtuple *nt2=GetFullReflectedRayPath(z0,x1,z1,lvalueR);
-  TNtuple *nt3=new TNtuple();
+  TGraph *gr1=GetFullDirectRayPath(z0,x1,z1,lvalueD);
+  TGraph *gr2=GetFullReflectedRayPath(z0,x1,z1,lvalueR);
+  TGraph *gr3=new TGraph();
   if((fabs(checkzeroR)>0.5 || fabs(checkzeroD)>0.5) && fabs(checkzeroRa)<0.5){
-    nt3=GetFullRefractedRayPath(z0,x1,z1,zmax,lvalueRa);
+    gr3=GetFullRefractedRayPath(z0,x1,z1,zmax,lvalueRa);
   }
+
+  gr1->SetMarkerColor(kBlue);
+  gr2->SetMarkerColor(kBlue);
+  gr3->SetMarkerColor(kBlue);
   
-  ////Plot the all the possible ray paths on the canvas
-  TNtuple *nt4=new TNtuple("nt4","nt4","x:z");
-  nt4->Fill(x1,z1);
-  nt4->SetMarkerStyle(20);
-  nt4->SetMarkerColor(kRed);
+  /* Plot the all the possible ray paths on the canvas */
+  TGraph *gr4=new TGraph();
+  gr4->SetPoint(0,x1,z1);
+  gr4->SetMarkerStyle(20);
+  gr4->SetMarkerColor(kRed);
 
-  TNtuple *nt4b=new TNtuple("nt4b","nt4b","x:z");
-  nt4b->Fill(0,z0);
-  nt4b->SetMarkerStyle(20);
-  nt4b->SetMarkerColor(kGreen);
-    
-  nt1->SetMarkerStyle(20);
-  nt1->SetMarkerColor(2);
-
-  nt2->SetMarkerStyle(20);
-  nt2->SetMarkerColor(2);
-
+  TGraph *gr4b=new TGraph();
+  gr4b->SetPoint(0,0,z0);
+  gr4b->SetMarkerStyle(20);
+  gr4b->SetMarkerColor(kGreen);
+  
   double zlower=z0;
   if(fabs(z0)<fabs(z1)){
     zlower=z1;
@@ -810,19 +792,23 @@ void PlotAndStoreRays(double x0,double z0, double z1, double x1, double zmax, do
   if(fabs(z0)>fabs(z1)){
     zlower=z0;
   }
-  TNtuple *nt5=new TNtuple("nt5","nt5","x:z");
-  nt5->Fill(0,zlower-50);
-  nt5->Fill(x1+50,0);
+  TGraph *gr5=new TGraph();
+  gr5->SetPoint(0,0,zlower-50);
+  gr5->SetPoint(1,x1+50,0);
 
-  gStyle->SetTitleX(0.2);
-  gStyle->SetTitleAlign(23);
-  TCanvas *c2=new TCanvas("c2","c2");
-  c2->cd();
-  nt5->Draw("z:x","","P");
-  TH2D *htemp = (TH2D*)gPad->GetPrimitive("htemp");
-  htemp->GetXaxis()->SetNdivisions(20);
-  c2->SetGridx();
-  c2->SetGridy();
+  if(fabs(checkzeroD)<0.5){
+    mg->Add(gr1);
+  }
+  if(fabs(checkzeroR)<0.5){
+    mg->Add(gr2);
+  }
+  if(fabs(checkzeroRa)<0.5){
+    mg->Add(gr3);
+  }
+  mg->Add(gr4);
+  mg->Add(gr4b);
+  //mg->Add(gr5);
+
   TString title="Depth vs Distance, Tx at x=";
   title+=x0;
   title+=" m,z=";
@@ -832,22 +818,18 @@ void PlotAndStoreRays(double x0,double z0, double z1, double x1, double zmax, do
   title+=" m,z=";
   title+=(int)z1;
   title+=" m; Distance (m);Depth (m)";
-  htemp->SetTitle(title);
+  mg->SetTitle(title);
+  
+  TCanvas *c2=new TCanvas("c2","c2");
+  c2->cd();
+  mg->Draw("AP");
+  mg->GetXaxis()->SetNdivisions(20);
+  c2->SetGridx();
+  c2->SetGridy();
 
-  nt4->Draw("z:x","","SAME P");
-  nt4b->Draw("z:x","","SAME P");
-  if(fabs(checkzeroR)<0.5){
-    nt2->Draw("z:x","","SAME L");
-  }
-  if(fabs(checkzeroRa)<0.5){
-    nt3->Draw("z:x","","SAME L");
-  }
-  if(fabs(checkzeroD)<0.5){
-    nt1->Draw("z:x","","SAME L");
-  }
 }
 
-////This function is used to measure the amount of time the code takes to run
+/* This function is used to measure the amount of time the code takes to run */
 typedef unsigned long long timestamp_t;
 static timestamp_t get_timestamp (){
   struct timeval now;
@@ -857,18 +839,18 @@ static timestamp_t get_timestamp (){
 
 double *IceRayTracing(double x0, double z0, double x1, double z1){
 
-  ////define a pointer to give back the output of raytracing 
+  /* define a pointer to give back the output of raytracing */ 
   double *output=new double[11];
 
-  ////Plot the ray solutions
-  bool Plot=true;
-  ////calculate the attenuation(not included yet!)
+  /* Store the ray paths in text files */
+  bool PlotRayPaths=true;
+  /* calculate the attenuation (not included yet!) */
   bool attcal=false;
   
-  double Txcor[2]={x0,z0};//Tx positions
-  double Rxcor[2]={x1,z1};//Rx Positions
-
-   ////*********This part of the code will try to get the Direct ray between Rx and Tx.***********
+  double Txcor[2]={x0,z0};/* Tx positions */
+  double Rxcor[2]={x1,z1};/* Rx Positions */
+  
+  /*  ********This part of the code will try to get the Direct ray between Rx and Tx.********** */
   double* GetDirectRay=GetDirectRayPar(z0,x1,z1);
   double RangD=GetDirectRay[0];
   double LangD=GetDirectRay[1];
@@ -877,7 +859,7 @@ double *IceRayTracing(double x0, double z0, double x1, double z1){
   double checkzeroD=GetDirectRay[4];
   delete []GetDirectRay;
   
-   ////*********This part of the code will try to get the Reflected ray between Rx and Tx.***********
+  /* ********This part of the code will try to get the Reflected ray between Rx and Tx.********** */
   double* GetReflectedRay=GetReflectedRayPar(z0,x1,z1);
   double RangR=GetReflectedRay[0];
   double LangR=GetReflectedRay[1];
@@ -888,17 +870,17 @@ double *IceRayTracing(double x0, double z0, double x1, double z1){
   double timeR2=GetReflectedRay[6];
   delete []GetReflectedRay;
 
-   ////*********This part of the code will try to get the Refracted ray between Rx and Tx.***********
-    double RangRa=0;
-    double LangRa=0;
-    double timeRa=0;
-    double lvalueRa=0; 
-    double checkzeroRa=0;
-    double timeRa1=0;
-    double timeRa2=0;
-    double zmax=0;
-
-    ////This if condition makes sure that we only try to find a refracted ray if we don't get two possible ray paths from the direct and reflected case. This saves us alot of time since we know that between each Tx and Rx position we only expect 2 rays.
+  /* ********This part of the code will try to get the Refracted ray between Rx and Tx.********** */
+  double RangRa=0;
+  double LangRa=0;
+  double timeRa=0;
+  double lvalueRa=0; 
+  double checkzeroRa=0;
+  double timeRa1=0;
+  double timeRa2=0;
+  double zmax=0;
+  
+  /* This if condition makes sure that we only try to find a refracted ray if we don't get two possible ray paths from the direct and reflected case. This saves us alot of time since we know that between each Tx and Rx position we only expect 2 rays. */
   if(fabs(checkzeroR)>0.5 || fabs(checkzeroD)>0.5){
     double* GetRefractedRay=GetRefractedRayPar(z0,x1,z1,LangR);
     RangRa=GetRefractedRay[0];
@@ -912,7 +894,7 @@ double *IceRayTracing(double x0, double z0, double x1, double z1){
     delete []GetRefractedRay;
   }
 
-  ////Fill in the output pointer after calculating all the results
+  /* Fill in the output pointer after calculating all the results */
   output[0]=LangD;
   output[1]=LangR;
   output[2]=LangRa;
@@ -923,8 +905,8 @@ double *IceRayTracing(double x0, double z0, double x1, double z1){
   output[7]=RangR;
   output[8]=RangRa;
 
-  ////This part of the code can be used if the user wants to plot the individual ray paths. This part of the code prints out the individual ray paths in text files and also plots them on a canvas
-  if(Plot==true){
+  /* This part of the code can be used if the user wants to plot the individual ray paths. This part of the code prints out the individual ray paths in text files and also plots them on a canvas */
+  if(PlotRayPaths==true){
     double lvalues[3];
     lvalues[0]=lvalueD;
     lvalues[1]=lvalueR;
@@ -938,10 +920,10 @@ double *IceRayTracing(double x0, double z0, double x1, double z1){
     PlotAndStoreRays(x0,z0,z1,x1,zmax,lvalues,checkzeroes);
   }
   
-  ////print out all the output from the code
-  //cout<<0<<" ,x0= "<<x0<<" ,z0= "<<z0<<" ,x1= "<<x1<<" ,z1= "<<z1<<" ,LangRa= "<<output[2]<<" ,LangR= "<<output[1]<<" ,LangD= "<<output[0]<<" ,LangD-LangR= "<<output[0]-output[1]<<" ,LangD-LangRa= "<<output[0]-output[2]<<" ,RangRa= "<<output[8]<<" ,RangR= "<<output[7]<<" ,RangD= "<<output[6]<<" ,RangR-RangD= "<<output[7]-output[6]<<" ,RangRa-RangD= "<<output[8]-output[6]<<" ,timeRa= "<<output[5]<<" ,timeR= "<<output[4]<<" ,timeD= "<<output[3]<<" ,timeR-timeD= "<<output[4]-output[3]<<" ,timeRa-timeD= "<<output[5]-output[3]<<" ,lvalueRa "<<lvalueRa<<" ,lvalueR "<<lvalueR<<" "<<" ,lvalueD "<<lvalueD<<" ,checkzeroRa "<<checkzeroRa<<" ,checkzeroR "<<checkzeroR<<" ,checkzeroD "<<checkzeroD<<endl;
+  /* print out all the output from the code */
+  //cout<<0<<" ,x0= "<<x0<<" ,z0= "<<z0<<" ,x1= "<<x1<<" ,z1= "<<z1<<" ,langRa= "<<output[2]<<" ,langR= "<<output[1]<<" ,langD= "<<output[0]<<" ,langD-langR= "<<output[0]-output[1]<<" ,langD-langRa= "<<output[0]-output[2]<<" ,RangRa= "<<output[8]<<" ,RangR= "<<output[7]<<" ,RangD= "<<output[6]<<" ,RangR-RangD= "<<output[7]-output[6]<<" ,RangRa-RangD= "<<output[8]-output[6]<<" ,timeRa= "<<output[5]<<" ,timeR= "<<output[4]<<" ,timeD= "<<output[3]<<" ,timeR-timeD= "<<output[4]-output[3]<<" ,timeRa-timeD= "<<output[5]-output[3]<<" ,lvalueRa "<<lvalueRa<<" ,lvalueR "<<lvalueR<<" "<<" ,lvalueD "<<lvalueD<<" ,checkzeroRa "<<checkzeroRa<<" ,checkzeroR "<<checkzeroR<<" ,checkzeroD "<<checkzeroD<<endl;
 
-  ////fill in the output array part where you fill in the times for the two parts of the reflected or refracted rays
+  /* fill in the output array part where you fill in the times for the two parts of the reflected or refracted rays */
   if(fabs(checkzeroR)<0.5){
     output[9]=timeR1;
     output[10]=timeR2;
@@ -952,7 +934,7 @@ double *IceRayTracing(double x0, double z0, double x1, double z1){
     output[10]=timeRa2;
   }
 
-  ////Set the recieve angle to be zero for a ray which did not give us a possible path between Tx and Rx. I use this as a flag to determine which two rays gave me possible ray paths.
+  /* Set the recieve angle to be zero for a ray which did not give us a possible path between Tx and Rx. I use this as a flag to determine which two rays gave me possible ray paths. */
   if(fabs(checkzeroD)>0.5){
     output[6]=0;
   }
