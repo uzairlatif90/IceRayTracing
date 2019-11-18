@@ -43,6 +43,37 @@ double Getnz(double z){
   return A_ice+GetB(z)*exp(-GetC(z)*z);
 }
 
+/* The temperature and attenuation model has been taken from AraSim which also took it from here http://icecube.wisc.edu/~araproject/radio/ . This is basically Matt Newcomb's icecube directory which has alot of information, plots and codes about South Pole Ice activities. Please read it if you find it interesting. */
+
+/* Temperature model:The model takes in value of depth z in m and returns the value of temperature in Celsius.*/
+double GetIceTemperature(double z){
+  double depth=fabs(z);
+  double t = 1.83415e-09*pow(depth,3) + (-1.59061e-08*pow(depth,2)) + 0.00267687*depth + (-51.0696 );
+  return t;
+}
+
+/* Ice Attenuation Length model: Takes in value of frequency in Ghz and depth z and returns you the value of attenuation length in m */
+double GetIceAttenuationLength(double z, double frequency){
+
+  double t =GetIceTemperature(z);
+  const double f0=0.0001, f2=3.16;
+  const double w0=log(f0), w1=0.0, w2=log(f2), w=log(frequency);
+  const double b0=-6.74890+t*(0.026709-t*0.000884);
+  const double b1=-6.22121-t*(0.070927+t*0.001773);
+  const double b2=-4.09468-t*(0.002213+t*0.000332);
+  double a,bb;
+  if(frequency<1.){
+    a=(b1*w0-b0*w1)/(w0-w1);
+    bb=(b1-b0)/(w1-w0);
+  }
+  else{
+    a=(b2*w1-b1*w2)/(w1-w2);
+    bb=(b2-b1)/(w2-w1);
+  }
+  double Lval=1./exp(a+bb*w);
+  return Lval;
+}
+
 /* Use GSL minimiser which uses Brent's Method to find root for a given function. This will be used to find roots wherever it is needed in my code.  */
 double FindFunctionRoot(gsl_function F,double x_lo, double x_hi)
 {
@@ -275,7 +306,7 @@ double* GetDirectRayPar(double z0, double x1, double z1){
 /* This functions works for the Reflected ray and gives you back the launch angle, receive angle and propagation times (of the whole ray and the two direct rays that make it up) together with values of the L parameter and checkzero variable. checkzero variable checks how close the minimiser came to 0. 0 is perfect and less than 0.5 is pretty good. more than that should not be acceptable. */
 double *GetReflectedRayPar(double z0, double x1 ,double z1){
 
-  double *output=new double[7];
+  double *output=new double[8];
 
   /* My raytracer can only work the Tx is below the Rx. If the Tx is higher than the Rx than we need to flip the depths to allow for raytracing and then we will flip them back later at the end */
   bool Flip=false;
@@ -342,6 +373,13 @@ double *GetReflectedRayPar(double z0, double x1 ,double z1){
     RangR=90;
   }
 
+  /* Calculate the angle of incidence of the reflected ray at the surface ice. This will be used to calculate the Fresnel Coefficients. The angle is calculated by calculating the derivative of the ray path fucnction at the surface*/
+  struct fDnfR_params paramsIAngB = {A_ice, GetB(0.0000001), GetC(0.0000001), lvalueR};
+  F5.function = &fDnfR; 
+  F5.params = &paramsIAngB;
+  gsl_deriv_central (&F5, -0.0000001, 1e-8, &result, &abserr);
+  double IncidenceAngleInIce=atan(result)*(180.0/pi);
+  
   dsw=0;
   /* If the Tx and Rx depth were switched then put them back to their original position */
   if(Flip==true){
@@ -357,7 +395,8 @@ double *GetReflectedRayPar(double z0, double x1 ,double z1){
   output[4]=checkzeroR;
   output[5]=timeR1;
   output[6]=timeR2;
-
+  output[7]=IncidenceAngleInIce;
+  
   /* If the flip case is true where we flipped Rx and Tx depths to trace rays then make sure everything is switched back before we give the output to the user. */
   if(Flip==true){
     output[0]=180-LangR;
@@ -791,7 +830,7 @@ static timestamp_t get_timestamp (){
 double *IceRayTracing(double x0, double z0, double x1, double z1){
 
   /* define a pointer to give back the output of raytracing */
-  double *output=new double[11];
+  double *output=new double[12];
 
   /* Store the ray paths in text files */
   bool StoreRayPaths=false;
@@ -819,6 +858,7 @@ double *IceRayTracing(double x0, double z0, double x1, double z1){
   double checkzeroR=GetReflectedRay[4];
   double timeR1=GetReflectedRay[5];
   double timeR2=GetReflectedRay[6];
+  double AngleOfIncidenceInIce=GetReflectedRay[7];
   delete []GetReflectedRay;
 
   /* ********This part of the code will try to get the Refracted ray between Rx and Tx.********** */
@@ -826,7 +866,7 @@ double *IceRayTracing(double x0, double z0, double x1, double z1){
     double LangRa=0;
     double timeRa=0;
     double lvalueRa=0; 
-    double checkzeroRa=0;
+    double checkzeroRa=1000;
     double timeRa1=0;
     double timeRa2=0;
     double zmax=0;
@@ -885,6 +925,8 @@ double *IceRayTracing(double x0, double z0, double x1, double z1){
     output[10]=timeRa2;
   }
 
+  output[11]=AngleOfIncidenceInIce;
+  
   /* Set the recieve angle to be zero for a ray which did not give us a possible path between Tx and Rx. I use this as a flag to determine which two rays gave me possible ray paths. */
   if(fabs(checkzeroD)>0.5){
     output[6]=0;
@@ -967,6 +1009,7 @@ int main(int argc, char ** argv){
     cout<<"Launch Angle: "<<getresults[1]<<" deg"<<endl;
     cout<<"Recieve Angle: "<<getresults[7]<<" deg"<<endl;
     cout<<"Propogation Time: "<<getresults[4]*pow(10,9)<<" ns"<<endl;   
+    cout<<"Incident Angle in Ice on the Surface: "<<getresults[11]<<" deg"<<endl;
   }
       
   if(getresults[8]!=0 && getresults[7]!=0 && getresults[6]==0){
