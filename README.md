@@ -13,7 +13,8 @@ It can also be made to print out AND plot the respective raypaths in text files 
 
   - the entry number, Ray path x values, Ray path z values
 
-- namepsace "IceRayTracing" : The namespace folder contains two sub folders "wROOT" and "woROOT". I made a namespace for my raytracing functions which makes it easier to include them as a part another code. The namespace is contained in "IceRayTracing.cc" and "IceRayTracing.hh".
+# namepsace "IceRayTracing"
+The namespace folder contains two sub folders "wROOT" and "woROOT". I made a namespace for my raytracing functions which makes it easier to include them as a part another code. The namespace is contained in "IceRayTracing.cc" and "IceRayTracing.hh".
 
   - The namespace in the folder "wROOT" has ROOT dependency and contains some ROOT functions which are used for plotting the rays.
   - The namespace in the folder "woROOT" does NOT have a ROOT dependency and instead of using ROOT functions for plotting it stores ray paths in c++ vectors.
