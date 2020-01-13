@@ -13,6 +13,13 @@ It can also be made to print out AND plot the respective raypaths in text files 
 
   - the entry number, Ray path x values, Ray path z values
 
+- namepsace "IceRayTracing" : The namespace folder contains two sub folders "wROOT" and "woROOT". I made a namespace for my raytracing functions which makes it easier to include them as a part another code. The namespace is contained in "IceRayTracing.cc" and "IceRayTracing.hh".
+
+  - The namespace in the folder "wROOT" has ROOT dependency and contains some ROOT functions which are used for plotting the rays.
+  - The namespace in the folder "woROOT" does NOT have a ROOT dependency and instead of using ROOT functions for plotting it stores ray paths in c++ vectors.
+  - The script "uzairRayTrace.cc" contains an example of how to call functions from within the namespace to do raytracing in ice.
+  - To compile the code just do `make uzairRayTrace`
+
 ## Prerequisites
 You will need to have a functioning installation of [GSL](https://www.gnu.org/software/gsl/) ([2.4](https://ftp.gnu.org/gnu/gsl/gsl-2.4.tar.gz) is verified to work).
 - You will need to set the enviromnent variable `GSLDIR` to your local installation of GSL.
