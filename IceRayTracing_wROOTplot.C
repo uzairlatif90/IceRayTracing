@@ -16,13 +16,19 @@ const double pi=4.0*atan(1.0); /* Gives back value of Pi */
 const double spedc=299792458.0; /* Speed of Light in m/s */
 
 /* Set the value of the asymptotic parameter of the refractive index model */
-const double A_ice=1.78;
+//const double A_ice=1.78;
+const double A_ice=1.77;
 
 /* Get the value of the B parameter for the refractive index model */
 double GetB(double z){
   z=fabs(z);
   double B=0;
-
+  // if(z<=14.9){
+  //   B=-0.50193;
+  // }
+  // if(z>14.9){
+  //   B=-0.448023;
+  // }
   B=-0.43;
   return B;
 }
@@ -31,7 +37,12 @@ double GetB(double z){
 double GetC(double z){
   z=fabs(z);
   double C=0;
-  
+  // if(C<=14.9){
+  //   C=0.0324675;
+  // }
+  // if(C>14.9){
+  //   C=0.0246914;
+  // }
   C=0.0132;
   return C;
 }
