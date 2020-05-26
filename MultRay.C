@@ -31,7 +31,7 @@ void MultRay(){
  
     zn=z1;
     /* This function returns the x and z values for the full Reflected ray path in a TGraph and also prints out the ray path in a text file */
-    grR[totray]=GetFullReflectedRayPath(z0,x1,z1,lvalueR);
+    grR[iang]=GetFullReflectedRayPath(z0,x1,z1,lvalueR);
 
     /* Setup the function that will be used to calculate the angle of reception for all the rays */
     gsl_function F5;
@@ -50,9 +50,9 @@ void MultRay(){
     Double_t zmax=GetZmax(A_ice,lvalueRa)+0.0000001;
     if(zmax>1e-6){
        /* This function returns the x and z values for the full Refracted ray path in a TGraph and also prints out the ray path in a text file */
-      grR[totray]=GetFullRefractedRayPath(z0,x1,z1,zmax,lvalueRa);
+      grR[iang]=GetFullRefractedRayPath(z0,x1,z1,zmax,lvalueRa);
     }
-    mg->Add(grR[totray]);
+    mg->Add(grR[iang]);
   }//iang loop
 
   TString title="Depth vs Distance, Tx Depth=";
