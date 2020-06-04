@@ -579,7 +579,9 @@ void IceRayTracing::GetFullDirectRayPath(double z0, double x1, double z1,double 
       i=dmax+2;      
     }  
   }
-
+  x.push_back(0);
+  z.push_back(z0);
+  
   dsw=0;
   /*If the Tx and Rx depth were switched then put them back to their original position */
   if(Flip==true){
@@ -673,7 +675,9 @@ void IceRayTracing::GetFullReflectedRayPath(double z0, double x1, double z1,doub
       i=dmax+2;
     }
   }
-
+  x.push_back(0);
+  z.push_back(z0);
+  
   dsw=0;
   /* If the Tx and Rx depth were switched then put them back to their original position */
   if(Flip==true){
@@ -767,7 +771,9 @@ void IceRayTracing::GetFullRefractedRayPath(double z0, double x1, double z1, dou
       i=dmax+2;
     }
   }
-
+  x.push_back(0);
+  z.push_back(z0);
+  
   dsw=0;
   /* If the Tx and Rx depth were switched then put them back to their original position */
   if(Flip==true){
