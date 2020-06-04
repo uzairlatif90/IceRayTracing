@@ -3,10 +3,13 @@
 void MultRay(){
   
   //Plot the ray solutions
-  Double_t x0=0;//Tx x positions
-  Double_t z0=-10;//Tx z position. The rays will start and end at this depth
-  Double_t x1=1000;//Rx z position. This is just a dummy variable for now
-  Double_t z1=z0;//Set the lower limit for the ray
+  Double_t z0=-10;//Tx z position. The rays will start at this depth
+  Double_t zlim=-20;//How deep do you want the rays to go into the ice
+  
+  /*These are all dummy variables you do not need to adjust them*/
+  Double_t x0=0;//Tx x positions 
+  Double_t x1=1000;//Rx dist position. This is just a dummy variable for now
+  Double_t z1=z0;//Rx z position.  This is just a dummy variable for now
   Double_t launchangle=0;//variable defined for the for loop
   
   Int_t totray=90*2*2;//total number of rays
@@ -29,17 +32,13 @@ void MultRay(){
     if(zmax>1e-5){
       zn=z1;
       /* This function returns the x and z values for the full Refracted ray path in a TGraph */
-      grR[iang]=IceRayTracing::GetFullRefractedRayPath(z0,x1,z1,zmax,lvalueRa);
+      grR[iang]=IceRayTracing::GetFullRefractedRayPath(z0,x1,z1,zmax,lvalueRa,zlim);
     }else{
       zn=z1;
       /* This function returns the x and z values for the full Reflected ray path in a TGraph */
-      grR[iang]=IceRayTracing::GetFullReflectedRayPath(z0,x1,z1,lvalueR);
+      grR[iang]=IceRayTracing::GetFullReflectedRayPath(z0,x1,z1,lvalueR,zlim);
     }
     grR[iang]->SetLineColor(kBlue);
-
-    struct IceRayTracing::fDnfR_L_params params1b = {IceRayTracing::A_ice, IceRayTracing::GetB(z0), -IceRayTracing::GetC(z0), -z0};
-    struct IceRayTracing::fDnfR_L_params params1c = {IceRayTracing::A_ice, IceRayTracing::GetB(0.0000001), -IceRayTracing::GetC(0.0000001), 0.0000001};
-    double TotalHoriDist=fDnfR_L(lvalueR,&params1b) - fDnfR_L(lvalueR,&params1c);
     
     mg->Add(grR[iang]);
   }//iang loop

@@ -594,9 +594,9 @@ TGraph* IceRayTracing::GetFullDirectRayPath(double z0, double x1, double z1,doub
 }
 
 /* This function returns the x and z values for the full Reflected ray path in a TGraph and also prints out the ray path in a text file */
-TGraph* IceRayTracing::GetFullReflectedRayPath(double z0, double x1, double z1,double lvalueR){
+TGraph* IceRayTracing::GetFullReflectedRayPath(double z0, double x1, double z1, double lvalueR, double zlim){
 
-  /* My raytracer can only work the Tx is below the Rx. If the Tx is higher than the Rx than we need to flip the depths to allow for raytracing and then we will flip them back later at the end */
+  /*My raytracer can only work the Tx is below the Rx. If the Tx is higher than the Rx than we need to flip the depths to allow for raytracing and then we will flip them back later at the end*/
   bool Flip=false;
   double dsw=z0;
   if(z0>z1){
@@ -614,6 +614,8 @@ TGraph* IceRayTracing::GetFullReflectedRayPath(double z0, double x1, double z1,d
   /* Set the values to start the rays from */
   double zn=z1;
   double xn=0;
+  //double zlim=z1-10;
+  zn=zlim;
   
   /* Map out the direct ray path */
   int npnt=0;
@@ -673,7 +675,9 @@ TGraph* IceRayTracing::GetFullReflectedRayPath(double z0, double x1, double z1,d
       i=dmax+2;
     }
   }
-
+  gr2->SetPoint(npnt,0,z0);
+  npnt++;
+  
   dsw=0;
   /* If the Tx and Rx depth were switched then put them back to their original position */
   if(Flip==true){
@@ -681,8 +685,6 @@ TGraph* IceRayTracing::GetFullReflectedRayPath(double z0, double x1, double z1,d
     z0=z1;
     z1=dsw;
   }
-  gr2->SetPoint(npnt,0,z0);
-  npnt++;
 
   
   return gr2;
@@ -690,7 +692,7 @@ TGraph* IceRayTracing::GetFullReflectedRayPath(double z0, double x1, double z1,d
 }
 
 /* This function returns the x and z values for the full Refracted ray path in a TGraph and also prints out the ray path in a text file */
-TGraph* IceRayTracing::GetFullRefractedRayPath(double z0, double x1, double z1, double zmax, double lvalueRa){
+TGraph* IceRayTracing::GetFullRefractedRayPath(double z0, double x1, double z1, double zmax, double lvalueRa, double zlim){
 
   /* My raytracer can only work the Tx is below the Rx. If the Tx is higher than the Rx than we need to flip the depths to allow for raytracing and then we will flip them back later at the end */
   bool Flip=false;
@@ -710,7 +712,9 @@ TGraph* IceRayTracing::GetFullRefractedRayPath(double z0, double x1, double z1, 
   /* Set the values to start the rays from */
   double zn=z1;
   double xn=0;
-
+  //double zlim=z1-10;
+  zn=zlim;
+  
   /* Map out the direct ray path */
   int npnt=0;
   double checknan=0;
@@ -798,10 +802,10 @@ void IceRayTracing::PlotAndStoreRays(double x0,double z0, double z1, double x1, 
   TMultiGraph *mg=new TMultiGraph();
   
   TGraph *gr1=GetFullDirectRayPath(z0,x1,z1,lvalueD);
-  TGraph *gr2=GetFullReflectedRayPath(z0,x1,z1,lvalueR);
+  TGraph *gr2=GetFullReflectedRayPath(z0,x1,z1,lvalueR,z1);
   TGraph *gr3=new TGraph();
   if((fabs(checkzeroR)>0.5 || fabs(checkzeroD)>0.5) && fabs(checkzeroRa)<0.5){
-    gr3=GetFullRefractedRayPath(z0,x1,z1,zmax,lvalueRa);
+    gr3=GetFullRefractedRayPath(z0,x1,z1,zmax,lvalueRa,z1);
   }
 
   gr1->SetMarkerColor(kBlue);
