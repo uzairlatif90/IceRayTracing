@@ -1,37 +1,32 @@
 #include "IceRayTracing_wROOTplot.C"
 
-void MultRay(){
+void MultRay(Double_t z0, Double_t LaunchInterval){
 
-  //Plot the ray solutions
-  Double_t x0=0;//Tx x positions
-  Double_t z0=-180;//Tx z position
-  Double_t x1=1000;//Tx z position
-  //Double_t z1=z0-100;//Set the lower limit for the rays
-  Double_t z1=z0;//Set the lower limit for the rays
-  Double_t setzrange=-250;//Set the lower limit for plotting
-  Double_t setxrange=800;//Set the distance limit for plotting
-  Double_t launchangle=0;//variable defined for the for loop
+  ////Plot the ray solutions
+  //Double_t z0=-180;//Tx z position
+  Double_t LowerPlotLimit=z0;//Set the lower limit for the rays
+  //Double_t LaunchInterval=0.25;//launch angle step size in degrees
+  Int_t TotalRays=90.0/LaunchInterval;//total number of rays
   
-  Int_t totray=90*2*2;//total number of rays
-  Double_t launchinterval=0.25;//launch angle step size in degrees
-
-  ////Ntuples to store ray paths
-  TGraph *grR[totray];
-  //TGraph *grRa[totray];
+  ////TGraphs to store ray paths
+  TGraph *grR[TotalRays];
   TMultiGraph *mg=new TMultiGraph();
+
+  Double_t DummyVariable=0;
+  Double_t launchangle=0;//variable defined for the for-loop
   
-  for(Int_t iang=0;iang<totray;iang++){    
-    launchangle=iang*launchinterval;
+  for(Int_t iang=0;iang<TotalRays;iang++){    
+    launchangle=iang*LaunchInterval;
     Double_t B=GetB(z0);
     Double_t C=GetC(z0);
     
     Double_t lvalueR=(A_ice+B*exp(C*z0))*sin(launchangle*(pi/180));
     Double_t lvalueRa=(A_ice+B*exp(C*z0))*sin(launchangle*(pi/180));
-    Double_t zn=z1;
+    Double_t zn=LowerPlotLimit;
  
-    zn=z1;
+    zn=LowerPlotLimit;
     /* This function returns the x and z values for the full Reflected ray path in a TGraph and also prints out the ray path in a text file */
-    grR[iang]=GetFullReflectedRayPath(z0,x1,z1,lvalueR);
+    grR[iang]=GetFullReflectedRayPath(z0,DummyVariable,LowerPlotLimit,lvalueR);
 
     /* Setup the function that will be used to calculate the angle of reception for all the rays */
     gsl_function F5;
@@ -45,12 +40,12 @@ void MultRay(){
     gsl_deriv_central (&F5, -0.0000001, 1e-8, &result, &abserr);
     double IncidenceAngleInIce=atan(result)*(180.0/pi);
     
-    zn=z1;
+    zn=LowerPlotLimit;
     /* This function returns the zmax for Reflected/Refracted ray path in a TGraph*/
     Double_t zmax=GetZmax(A_ice,lvalueRa)+0.0000001;
     if(zmax>1e-6){
        /* This function returns the x and z values for the full Refracted ray path in a TGraph and also prints out the ray path in a text file */
-      grR[iang]=GetFullRefractedRayPath(z0,x1,z1,zmax,lvalueRa);
+      grR[iang]=GetFullRefractedRayPath(z0,DummyVariable,LowerPlotLimit,zmax,lvalueRa);
     }
     mg->Add(grR[iang]);
   }//iang loop
