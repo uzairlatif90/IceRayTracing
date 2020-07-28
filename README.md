@@ -15,6 +15,9 @@ It can also be made to print out AND plot the respective ray paths in text files
 
 - MultRay.C : This plots a Multi-Ray diagram of rays launching from a given transmitter (Tx) position. It takes in the given Tx depth and angle step size for launching rays and launches rays from 0 to 90 deg. Here the angle is measured w.r.t vertical where 0 deg is straight up. This macro depends on IceRayTracing_wROOTplot.C.
 
+![Angle Conventions](./Angle_Convention.png)
+Format: ![Alt Text](url)
+
 ## namepsace "IceRayTracing"
 The namespace folder contains two subfolders "wROOT" and "woROOT". I made a namespace for my raytracing functions, making it easier to include them as part of another code. The namespace is contained in "IceRayTracing.cc" and "IceRayTracing.hh".
 
