@@ -36,10 +36,13 @@ double IceRayTracing::Refl_S(double thetai){
   double n1=Nice;
   double n2=Nair;
   
-  double sqterm=sqrt(1-pow(1-(n1/n2)*(sin(thetai)),2));
+  double sqterm=sqrt(1-pow((n1/n2)*(sin(thetai)),2));
   double num=n1*cos(thetai)-n2*sqterm;
   double den=n1*cos(thetai)+n2*sqterm;
   double RS=(num*num)/(den*den);
+  if(isnan(RS)){
+    RS=1;
+  }
   return (RS);
 }
 
@@ -49,11 +52,14 @@ double IceRayTracing::Refl_P(double thetai){
   double Nice=IceRayTracing::Getnz(0); 
   double n1=Nice;
   double n2=Nair;
-  
-  double sqterm=sqrt(1-pow(1-(n1/n2)*(sin(thetai)),2));
+
+  double sqterm=sqrt(1-pow((n1/n2)*(sin(thetai)),2));
   double num=n1*sqterm-n2*cos(thetai);
   double den=n1*sqterm+n2*cos(thetai);
   double RP=(num*num)/(den*den);
+  if(isnan(RP)){
+    RP=1;
+  }
   return (RP);
 }
 
