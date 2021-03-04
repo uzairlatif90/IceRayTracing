@@ -10,25 +10,25 @@
 #include <gsl/gsl_deriv.h>
 #include <sys/time.h>
 
+#include "TGraph.h"
+#include "TMultiGraph.h"
+#include "TCanvas.h"
+#include "TAxis.h"
+#include "TVector3.h"
+
 using namespace std;
 
 const double pi=4.0*atan(1.0); /* Gives back value of Pi */
 const double spedc=299792458.0; /* Speed of Light in m/s */
 
 /* Set the value of the asymptotic parameter of the refractive index model */
-//const double A_ice=1.78;
-const double A_ice=1.77;
+const double A_ice=1.78;
 
 /* Get the value of the B parameter for the refractive index model */
 double GetB(double z){
   z=fabs(z);
   double B=0;
-  // if(z<=14.9){
-  //   B=-0.50193;
-  // }
-  // if(z>14.9){
-  //   B=-0.448023;
-  // }
+
   B=-0.43;
   return B;
 }
@@ -37,12 +37,7 @@ double GetB(double z){
 double GetC(double z){
   z=fabs(z);
   double C=0;
-  // if(C<=14.9){
-  //   C=0.0324675;
-  // }
-  // if(C>14.9){
-  //   C=0.0246914;
-  // }
+
   C=0.0132;
   return C;
 }
@@ -97,11 +92,6 @@ double FindFunctionRoot(gsl_function F,double x_lo, double x_hi)
   s = gsl_root_fsolver_alloc (T);
   gsl_set_error_handler_off();
   status = gsl_root_fsolver_set (s, &F, x_lo, x_hi);
-  // cout<<x_lo<<" "<<x_hi<<" "<<endl;
-  // printf ("error: %s\n", gsl_strerror (status));
-  
-  // printf ("using %s method\n", gsl_root_fsolver_name (s));
-  // printf ("%5s [%9s, %9s] %9s %9s\n","iter", "lower", "upper", "root", "err(est)");
 
   do
     {
@@ -498,8 +488,8 @@ double *GetRefractedRayPar(double z0, double x1 ,double z1, double LangR, double
     raytime=2*ftimeD(-zmax,&params4c) - ftimeD(z0,&params4a) - ftimeD(z1,&params4b);
 
     /* Also get the time for the two individual direct rays separately */
-    timeRa1=+ftimeD(-zmax,&params4c) - ftimeD(z0,&params4a);
-    timeRa2=+ftimeD(-zmax,&params4c) - ftimeD(z1,&params4b);
+    timeRa1=ftimeD(-zmax,&params4c) - ftimeD(z0,&params4a);
+    timeRa2=ftimeD(-zmax,&params4c) - ftimeD(z1,&params4b);
     if(Flip==true){
       double dumRa=timeRa2;
       timeRa2=timeRa1;
@@ -547,8 +537,6 @@ double *GetRefractedRayPar(double z0, double x1 ,double z1, double LangR, double
   output[5]=timeRa1;
   output[6]=timeRa2;
   output[7]=zmax;
-
-  cout<<"timeRa1 "<<timeRa1*pow(10,9)<<" timeRa2 "<<timeRa2*pow(10,9)<<" timeRa "<<timeRa*pow(10,9)<<" zmax "<<zmax<<" "<<z0<<" "<<z1<<endl;
   
   /* If the flip case is true where we flipped Rx and Tx depths to trace rays then make sure everything is switched back before we give the output to the user. */
   if(Flip==true){
@@ -883,12 +871,12 @@ void PlotAndStoreRays(double x0,double z0, double z1, double x1, double zmax, do
   title+=" m; Distance (m);Depth (m)";
   mg->SetTitle(title);
   
-  TCanvas *c2=new TCanvas("c2","c2");
-  c2->cd();
-  mg->Draw("ALP");
-  mg->GetXaxis()->SetNdivisions(20);
-  c2->SetGridx();
-  c2->SetGridy();
+  // TCanvas *c2=new TCanvas("c2","c2");
+  // c2->cd();
+  // mg->Draw("ALP");
+  // mg->GetXaxis()->SetNdivisions(20);
+  // c2->SetGridx();
+  // c2->SetGridy();
 
 }
 
@@ -903,7 +891,7 @@ static timestamp_t get_timestamp (){
 double *IceRayTracing(double x0, double z0, double x1, double z1){
 
   /* define a pointer to give back the output of raytracing */ 
-  double *output=new double[12];
+  double *output=new double[12+4];
 
   /* Store the ray paths in text files */
   bool PlotRayPaths=true;
@@ -985,7 +973,7 @@ double *IceRayTracing(double x0, double z0, double x1, double z1){
   }
   
   /* print out all the output from the code */
-  ////cout<<0<<" ,x0= "<<x0<<" ,z0= "<<z0<<" ,x1= "<<x1<<" ,z1= "<<z1<<" ,langRa= "<<output[2]<<" ,langR= "<<output[1]<<" ,langD= "<<output[0]<<" ,langD-langR= "<<output[0]-output[1]<<" ,langD-langRa= "<<output[0]-output[2]<<" ,RangRa= "<<output[8]<<" ,RangR= "<<output[7]<<" ,RangD= "<<output[6]<<" ,RangR-RangD= "<<output[7]-output[6]<<" ,RangRa-RangD= "<<output[8]-output[6]<<" ,timeRa= "<<output[5]<<" ,timeR= "<<output[4]<<" ,timeD= "<<output[3]<<" ,timeR-timeD= "<<output[4]-output[3]<<" ,timeRa-timeD= "<<output[5]-output[3]<<" ,lvalueRa "<<lvalueRa<<" ,lvalueR "<<lvalueR<<" "<<" ,lvalueD "<<lvalueD<<" ,checkzeroRa "<<checkzeroRa<<" ,checkzeroR "<<checkzeroR<<" ,checkzeroD "<<checkzeroD<<endl;
+  //cout<<0<<" ,x0= "<<x0<<" ,z0= "<<z0<<" ,x1= "<<x1<<" ,z1= "<<z1<<" ,langRa= "<<output[2]<<" ,langR= "<<output[1]<<" ,langD= "<<output[0]<<" ,langD-langR= "<<output[0]-output[1]<<" ,langD-langRa= "<<output[0]-output[2]<<" ,RangRa= "<<output[8]<<" ,RangR= "<<output[7]<<" ,RangD= "<<output[6]<<" ,RangR-RangD= "<<output[7]-output[6]<<" ,RangRa-RangD= "<<output[8]-output[6]<<" ,timeRa= "<<output[5]<<" ,timeR= "<<output[4]<<" ,timeD= "<<output[3]<<" ,timeR-timeD= "<<output[4]-output[3]<<" ,timeRa-timeD= "<<output[5]-output[3]<<" ,lvalueRa "<<lvalueRa<<" ,lvalueR "<<lvalueR<<" "<<" ,lvalueD "<<lvalueD<<" ,checkzeroRa "<<checkzeroRa<<" ,checkzeroR "<<checkzeroR<<" ,checkzeroD "<<checkzeroD<<endl;
 
   /* fill in the output array part where you fill in the times for the two parts of the reflected or refracted rays */
   if(fabs(checkzeroR)<0.5){
@@ -999,6 +987,10 @@ double *IceRayTracing(double x0, double z0, double x1, double z1){
   }
 
   output[11]=AngleOfIncidenceInIce;
+  output[12]=lvalueD;
+  output[13]=lvalueR;
+  output[14]=lvalueRa;
+  output[15]=zmax;
   
   /* Set the recieve angle to be zero for a ray which did not give us a possible path between Tx and Rx. I use this as a flag to determine which two rays gave me possible ray paths. */
   if(fabs(checkzeroD)>0.5){
