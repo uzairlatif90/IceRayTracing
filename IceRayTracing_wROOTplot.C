@@ -4,6 +4,7 @@
 #include <fstream>
 #include <string>
 #include <algorithm>
+#include <chrono>
 #include <gsl/gsl_errno.h>
 #include <gsl/gsl_math.h>
 #include <gsl/gsl_roots.h>
@@ -335,13 +336,11 @@ double *GetReflectedRayPar(double z0, double x1 ,double z1){
   struct ftimeD_params params3b = {A_ice, GetB(z1), GetC(z1), spedc,lvalueR};
   struct ftimeD_params params3c = {A_ice, GetB(0.0000001), GetC(0.0000001), spedc,lvalueR};
 
-  /* we do the subtraction because we are measuring the time taken between the Tx and Rx positions. In the reflected case we basically have two direct rays 1) from Tx to surface 2) from surface to Rx. */
-  double timeR= 2*ftimeD(-0.0000001,&params3c) - ftimeD(z0,&params3a) - ftimeD(z1,&params3b);
-
-  /* Also get the time for the two individual direct rays separately */
+  /* We do the subtraction because we are measuring the time taken between the Tx and Rx positions. In the reflected case we basically have two direct rays 1) from Tx to surface 2) from surface to Rx. Also get the time for the two individual direct rays separately */
   double timeR1=ftimeD(-0.0000001,&params3c) - ftimeD(z0,&params3a);
   double timeR2=ftimeD(-0.0000001,&params3c) - ftimeD(z1,&params3b);
-
+  double timeR=timeR1 + timeR2;
+  
   /* flip the times back if the original positions were flipped */
   if(Flip==true){
     double dumR=timeR2;
@@ -484,12 +483,10 @@ double *GetRefractedRayPar(double z0, double x1 ,double z1, double LangR, double
 
   /* This if condition checks if the function has not gone crazy and given us a turning point of the ray which is lower than both Tx and Rx and is shallower in depth than both */
   if((z0<-zmax || zmax<-z1)){
-    /* we do the subtraction because we are measuring the time taken between the Tx and Rx positions. In the refracted case we basically have two direct rays 1) from Tx to turning point 2) from turning point to Rx. */
-    raytime=2*ftimeD(-zmax,&params4c) - ftimeD(z0,&params4a) - ftimeD(z1,&params4b);
-
-    /* Also get the time for the two individual direct rays separately */
+    /* we do the subtraction because we are measuring the time taken between the Tx and Rx positions. In the refracted case we basically have two direct rays 1) from Tx to turning point 2) from turning point to Rx. Also get the time for the two individual direct rays separately */
     timeRa1=ftimeD(-zmax,&params4c) - ftimeD(z0,&params4a);
     timeRa2=ftimeD(-zmax,&params4c) - ftimeD(z1,&params4b);
+    raytime=timeRa1 + timeRa2;
     if(Flip==true){
       double dumRa=timeRa2;
       timeRa2=timeRa1;
@@ -871,21 +868,13 @@ void PlotAndStoreRays(double x0,double z0, double z1, double x1, double zmax, do
   title+=" m; Distance (m);Depth (m)";
   mg->SetTitle(title);
   
-  // TCanvas *c2=new TCanvas("c2","c2");
-  // c2->cd();
-  // mg->Draw("ALP");
-  // mg->GetXaxis()->SetNdivisions(20);
-  // c2->SetGridx();
-  // c2->SetGridy();
+  TCanvas *c2=new TCanvas("c2","c2");
+  c2->cd();
+  mg->Draw("ALP");
+  mg->GetXaxis()->SetNdivisions(20);
+  c2->SetGridx();
+  c2->SetGridy();
 
-}
-
-/* This function is used to measure the amount of time the code takes to run */
-typedef unsigned long long timestamp_t;
-static timestamp_t get_timestamp (){
-  struct timeval now;
-  gettimeofday (&now, NULL);
-  return  now.tv_usec + (timestamp_t)now.tv_sec * 1000000;
 }
 
 double *IceRayTracing(double x0, double z0, double x1, double z1){
@@ -1006,10 +995,498 @@ double *IceRayTracing(double x0, double z0, double x1, double z1){
   return output;
 }
 
+/* Analytical solution describing ray paths in ice as function of depth for constant refractive index*/
+double fDnfR_Cnz(double x,void *params){
+  
+  struct fDnfR_params *p= (struct fDnfR_params *) params;
+  double A = p->a;
+  double L = p->l;
+  
+  return (L/sqrt(A*A-L*L))*x;
+}
+
+/* Analytical solution describing the ray path in ice as a function of the L parameter for constant refractive index*/
+double fDnfR_L_Cnz(double x,void *params){
+  
+  struct fDnfR_L_params *p= (struct fDnfR_L_params *) params;
+  double A = p->a;
+  double Z = p->z;
+  
+  double out=0;
+  if(A>x){
+    out=(x/sqrt(A*A-x*x))*Z;
+  }else{
+    out=tan(asin(x/A))*Z;
+  }
+  return out;
+}
+
+/* The function used to calculate ray propogation time in ice for constant refractive index*/
+double ftimeD_Cnz(double x,void *params){
+
+  struct ftimeD_params *p= (struct ftimeD_params *) params;
+  double A = p->a;
+  double Speedc = p->speedc;
+  double L = p->l;
+  
+  return ((A*x)/Speedc)*sqrt( ((L*L)/(A*A-L*L)) + 1 );
+}
+
+/* This function is minimised to find the launch angle (or the L parameter) for the direct ray for constant refractive index */
+double fDa_Cnz(double x,void *params){
+  struct fDanfRa_params *p= (struct fDanfRa_params *) params;
+  double A = p->a;
+  double z0 = p->z0;
+  double x1 = p->x1;
+  double z1 = p->z1;
+
+  struct fDnfR_L_params params1a = {A, 0, 0, z1};
+  struct fDnfR_L_params params1b = {A, 0, 0, z0};
+  
+  return fDnfR_L_Cnz(x,&params1a) - fDnfR_L_Cnz(x,&params1b) - x1;
+}
+
+/* This function is minimised to find the launch angle (or the L parameter) for the reflected ray for constant refractive index*/
+double fRa_Cnz(double x,void *params){
+  struct fDanfRa_params *p= (struct fDanfRa_params *) params;
+  double A = p->a;
+  double z0 = p->z0;
+  double x1 = p->x1;
+  double z1 = p->z1;
+
+  struct fDnfR_L_params params1a = {A, 0, 0, -z1};
+  struct fDnfR_L_params params1b = {A, 0, 0, -z0};
+  struct fDnfR_L_params params1c = {A, 0, 0, 0.0};
+
+  return fDnfR_L_Cnz(x,&params1a) - fDnfR_L_Cnz(x,&params1b) - 2*( fDnfR_L_Cnz(x,&params1c) - fDnfR_L_Cnz(x,&params1b) ) - x1;
+}
+
+
+/* This functions works for the Direct ray and gives you back the launch angle, receive angle and propagation time of the ray together with values of the L parameter. This for constant refractive index*/
+double* GetDirectRayPar_Cnz(double z0, double x1, double z1, double A_ice_Cnz){
+
+  double *output=new double[4];
+  
+  /* My raytracer can only work the Tx is below the Rx. If the Tx is higher than the Rx than we need to flip the depths to allow for raytracing and then we will flip them back later at the end */
+  bool Flip=false;
+  double dsw=z0;
+  if(z0>z1){
+    z0=z1;
+    z1=dsw;
+    Flip=true;
+  }
+  
+  /* First we setup the fDa function that will be minimised to get the launch angle (or the L parameter) for the direct ray. */
+  gsl_function F1; 
+  struct fDanfRa_params params1= {A_ice_Cnz, z0, x1, z1};
+  F1.function = &fDa_Cnz;
+  F1.params = &params1;
+
+  /* Calculate the launch angle and the value of the L parameter */
+  double LangD=(pi*0.5-atan(fabs(z1-z0)/x1))*(180.0/pi);
+  double lvalueD=A_ice_Cnz*sin(LangD*(pi/180.0));
+    
+  /* Get the propagation time for the direct ray using the ftimeD_Cnz function after we have gotten the value of the L parameter. */
+  struct ftimeD_params params2a = {A_ice_Cnz, 0, 0, spedc,lvalueD};
+  struct ftimeD_params params2b = {A_ice_Cnz, 0, 0, spedc,lvalueD};
+
+  /* we do the subtraction because we are measuring the time taken between the Tx and Rx positions */
+  double timeD=+ftimeD_Cnz(-z0,&params2a) - ftimeD_Cnz(-z1,&params2b);
+  
+  /* Calculate the recieve angle for direct rays by which is the same as the launch angle */
+  double RangD=LangD;
+  
+  dsw=0;
+  /* If the Tx and Rx depth were switched then put them back to their original position */
+  if(Flip==true){
+    dsw=z0;
+    z0=z1;
+    z1=dsw;
+  }
+  
+  output[0]=RangD;
+  output[1]=LangD;
+  output[2]=timeD;
+  output[3]=lvalueD;
+
+  /* If the flip case is true where we flipped Rx and Tx depths to trace rays then make sure everything is switched back before we give the output to the user. */
+  if(Flip==true){
+    output[0]=180-LangD;
+    output[1]=180-RangD;
+  }
+  
+  return output;
+}
+
+/* This functions works for the Reflected ray and gives you back the launch angle, receive angle and propagation times (of the whole ray and the two direct rays that make it up) together with values of the L parameter. This is for constant refractive index*/
+double *GetReflectedRayPar_Cnz(double z0, double x1 , double z1, double A_ice_Cnz){
+
+  double *output=new double[8];
+
+  /* My raytracer can only work the Tx is below the Rx. If the Tx is higher than the Rx than we need to flip the depths to allow for raytracing and then we will flip them back later at the end */
+  bool Flip=false;
+  double dsw=z0;
+  if(z0>z1){
+    z0=z1;
+    z1=dsw;
+    Flip=true;
+  }
+  
+  /* First we setup the fRa function that will be minimised to get the launch angle (or the L parameter) for the reflected ray. */
+  gsl_function F3;
+  struct fDanfRa_params params3= {A_ice_Cnz, z0, x1, z1};
+  F3.function = &fRa_Cnz;
+  F3.params = &params3;
+
+  /* In my raytracing solution given in the function fDnfR_Cnz the launch angle (or the L parameter) has limit placed on it by this part in the solution that L<A . This sets the upper limit in our minimisation to get the launch angle (or the L parameter). Here I am basically setting the upper limit to be the angle of the direct ray as GSL requires that my function is well behaved on the upper and lower bounds I give it for minimisation. */
+  double UpperLimitL=A_ice_Cnz*sin(pi*0.5-atan(fabs(z1-z0)/x1));
+  
+  /* Do the minimisation and get the value of the L parameter and the launch angle */
+  double lvalueR=FindFunctionRoot(F3,0.0,UpperLimitL);
+  double LangR=asin(lvalueR/A_ice_Cnz)*(180.0/pi);
+
+  /* Get the propagation time for the reflected ray using the ftimeD_Cnz function after we have gotten the value of the L parameter. */
+  struct ftimeD_params params3a = {A_ice_Cnz, 0, 0, spedc,lvalueR};
+  struct ftimeD_params params3b = {A_ice_Cnz, 0, 0, spedc,lvalueR};
+  struct ftimeD_params params3c = {A_ice_Cnz, 0, 0, spedc,lvalueR};
+  
+  /* we do the subtraction because we are measuring the time taken between the Tx and Rx positions. In the reflected case we basically have two direct rays 1) from Tx to surface 2) from surface to Rx. . Also get the time for the two individual direct rays separately */
+  double timeR1=ftimeD_Cnz(0.0,&params3c) - ftimeD_Cnz(z0,&params3a);
+  double timeR2=ftimeD_Cnz(0.0,&params3c) - ftimeD_Cnz(z1,&params3b);
+  double timeR= timeR1 + timeR2;
+  
+  /* flip the times back if the original positions were flipped */
+  if(Flip==true){
+    double dumR=timeR2;
+    timeR2=timeR1;
+    timeR1=dumR;
+  }
+  timeR1=timeR1;
+  timeR2=timeR2;
+  
+  /* Calculate the recieve angle for reflected ray using simple geometry*/
+  double RangR=180-LangR;
+
+   /* Calculate the angle of incidence of the reflected ray at the surface ice. This will be used to calculate the Fresnel Coefficients.*/
+  double IncidenceAngleInIce=LangR;
+  
+  dsw=0;
+  /* If the Tx and Rx depth were switched then put them back to their original position */
+  if(Flip==true){
+    dsw=z0;
+    z0=z1;
+    z1=dsw;
+  }
+  
+  output[0]=RangR;
+  output[1]=LangR;
+  output[2]=timeR;
+  output[3]=lvalueR;
+  output[4]=0;
+  output[5]=timeR1;
+  output[6]=timeR2;
+  output[7]=IncidenceAngleInIce;
+  
+  /* If the flip case is true where we flipped Rx and Tx depths to trace rays then make sure everything is switched back before we give the output to the user. */
+  if(Flip==true){
+    output[0]=180-LangR;
+    output[1]=180-RangR;
+  } 
+  
+  return output;
+}
+
+/* This function returns the x and z values for the full Direct ray path in a TGraph and also prints out the ray path in a text file. This is for a constant refractive index. */
+TGraph* GetFullDirectRayPath_Cnz(double z0, double x1, double z1, double lvalueD, double A_ice_Cnz){
+
+  /* My raytracer can only work the Tx is below the Rx. If the Tx is higher than the Rx than we need to flip the depths to allow for raytracing and then we will flip them back later at the end */
+  bool Flip=false;
+  double dsw=z0;
+  if(z0>z1){
+    z0=z1;
+    z1=dsw;
+    Flip=true;
+  }
+   
+  /* Set the name of the text files */
+  //ofstream aoutD("DirectRay.txt");
+  /* Set the step size for plotting */
+  double h=0.1;
+  /* Set the total steps required for looping over the whole ray path */
+  int dmax=100000;
+  /* Set the values to start the rays from */
+  double zn=z1;
+  double xn=0;
+
+  /* Map out the direct ray path */
+  int npnt=0;
+  double checknan=0;
+  struct fDnfR_params params6a;
+  struct fDnfR_params params6b;
+  
+  TGraph *gr1=new TGraph();
+  for(int i=0;i<dmax;i++){
+    params6a = {A_ice_Cnz, GetB(zn), GetC(zn), lvalueD};
+    params6b = {A_ice_Cnz, GetB(z0), GetC(z0), lvalueD};
+    xn=fDnfR_Cnz(zn,&params6a)-fDnfR_Cnz(z0,&params6b);
+    checknan=fDnfR(zn,&params6a);
+    if(isnan(checknan)==false && Flip==false){
+      gr1->SetPoint(npnt,xn,zn);
+      //aoutD<<npnt<<" "<<xn<<" "<<zn<<endl;;
+      npnt++;
+    }
+
+    if(isnan(checknan)==false && Flip==true){
+      gr1->SetPoint(npnt,x1-xn,zn);
+      //aoutD<<npnt<<" "<<x1-xn<<" "<<zn<<endl;;
+      npnt++;
+    }
+
+    zn=zn-h;
+    if(zn<z0){
+      zn=z0;
+      i=dmax+2;      
+    }  
+  }
+  gr1->SetPoint(npnt,0,z0);
+  npnt++;
+  
+  dsw=0;
+  /* If the Tx and Rx depth were switched then put them back to their original position */
+  if(Flip==true){
+    dsw=z0;
+    z0=z1;
+    z1=dsw;
+  }
+  
+  return gr1;
+
+}
+
+/* This function returns the x and z values for the full Reflected ray path in a TGraph and also prints out the ray path in a text file. This is for a constant refractive index. */
+TGraph* GetFullReflectedRayPath_Cnz(double z0, double x1, double z1, double lvalueR, double A_ice_Cnz){
+
+  /* My raytracer can only work the Tx is below the Rx. If the Tx is higher than the Rx than we need to flip the depths to allow for raytracing and then we will flip them back later at the end */
+  bool Flip=false;
+  double dsw=z0;
+  if(z0>z1){
+    z0=z1;
+    z1=dsw;
+    Flip=true;
+  }
+  
+  // /* Set the name of the text files */
+  // ofstream aoutR("ReflectedRay.txt");
+  /* Set the step size for plotting. */
+  double h=0.1;
+  /* Set the total steps required for looping over the whole ray path */
+  int dmax=100000;
+  /* Set the values to start the rays from */
+  double zn=z1;
+  double xn=0;
+  
+  /* Map out the direct ray path */
+  int npnt=0;
+  double checknan=0;  
+  struct fDnfR_params params6a;
+  struct fDnfR_params params6b;
+  struct fDnfR_params params6c;
+
+  /* Map out the 1st part of the reflected ray */
+  TGraph *gr2=new TGraph();
+  for(int i=0;i<dmax;i++){
+    params6a = {A_ice_Cnz, 0, 0, lvalueR};
+    params6b = {A_ice_Cnz, 0, 0, lvalueR};
+    params6c = {A_ice_Cnz, 0, 0, lvalueR};
+    xn=(fDnfR_Cnz(-zn,&params6a)-fDnfR_Cnz(-z0,&params6b)+2*fabs(fDnfR_Cnz(0.0,&params6c)-fDnfR_Cnz(-z0,&params6b)));
+    checknan=fDnfR_Cnz(-zn,&params6a);
+    if(isnan(checknan)==false && zn<=0 && Flip==false){
+      gr2->SetPoint(npnt,xn,zn);
+      //aoutR<<npnt<<" "<<xn<<" "<<zn<<endl;
+      npnt++;
+    }
+
+    if(isnan(checknan)==false && zn<=0 && Flip==true){
+      gr2->SetPoint(npnt,x1-xn,zn);
+      //aoutR<<npnt<<" "<<x1-xn<<" "<<zn<<endl;
+      npnt++;
+    }
+      
+    zn=zn+h;
+    if(zn>0){
+      i=dmax+2;      
+    }
+  }
+  
+  /* Map out the 2nd part of the reflected ray */
+  zn=0.0;
+  for(int i=0;i<dmax;i++){  
+    params6a = {A_ice_Cnz, 0, 0, lvalueR};
+    params6b = {A_ice_Cnz, 0, 0, lvalueR};
+    xn=fDnfR_Cnz(zn,&params6a)-fDnfR_Cnz(z0,&params6b);
+    checknan=fDnfR_Cnz(zn,&params6a);
+    if(isnan(checknan)==false && Flip==false){
+      gr2->SetPoint(npnt,xn,zn);
+      //aoutR<<npnt<<" "<<xn<<" "<<zn<<endl;
+      npnt++;
+    }
+      
+    if(isnan(checknan)==false && Flip==true){
+      gr2->SetPoint(npnt,x1-xn,zn);
+      //aoutR<<npnt<<" "<<x1-xn<<" "<<zn<<endl;
+      npnt++;
+    }
+
+    zn=zn-h;
+    if(zn<z0){
+      zn=z0;
+      i=dmax+2;
+    }
+  }
+
+  dsw=0;
+  /* If the Tx and Rx depth were switched then put them back to their original position */
+  if(Flip==true){
+    dsw=z0;
+    z0=z1;
+    z1=dsw;
+  }
+  gr2->SetPoint(npnt,0,z0);
+  npnt++;
+
+  
+  return gr2;
+
+}
+
+/* function for plotting and storing all the rays. This is for constant refractive index. */
+void PlotAndStoreRays_Cnz(double x0,double z0, double z1, double x1, double lvalues[2], double A_ice_Cnz){
+  
+  double lvalueD=lvalues[0];
+  double lvalueR=lvalues[1];
+
+  TMultiGraph *mg=new TMultiGraph();
+  
+  TGraph *gr1=GetFullDirectRayPath_Cnz(z0,x1,z1,lvalueD,A_ice_Cnz);
+  TGraph *gr2=GetFullReflectedRayPath_Cnz(z0,x1,z1,lvalueR,A_ice_Cnz);
+ 
+  gr1->SetMarkerColor(kBlue);
+  gr2->SetMarkerColor(kBlue); 
+  
+  /* Plot the all the possible ray paths on the canvas */
+  TGraph *gr4=new TGraph();
+  gr4->SetPoint(0,x1,z1);
+  gr4->SetMarkerStyle(20);
+  gr4->SetMarkerColor(kRed);
+
+  TGraph *gr4b=new TGraph();
+  gr4b->SetPoint(0,0,z0);
+  gr4b->SetMarkerStyle(20);
+  gr4b->SetMarkerColor(kGreen);
+    
+  gr1->SetMarkerStyle(20);
+  gr1->SetMarkerColor(2);
+
+  gr2->SetMarkerStyle(20);
+  gr2->SetMarkerColor(2);
+
+  double zlower=z0;
+  if(fabs(z0)<fabs(z1)){
+    zlower=z1;
+  }
+  if(fabs(z0)>fabs(z1)){
+    zlower=z0;
+  }
+  TGraph *gr5=new TGraph();
+  gr5->SetPoint(0,0,zlower-50);
+  gr5->SetPoint(1,x1+50,0);
+
+  mg->Add(gr1);
+  mg->Add(gr2);
+  mg->Add(gr4);
+  mg->Add(gr4b);
+  //mg->Add(gr5);
+
+  TString title="Depth vs Distance, Tx at x=";
+  title+=x0;
+  title+=" m,z=";
+  title+=(int)z0;
+  title+=" m, Rx at x=";
+  title+=x1;
+  title+=" m,z=";
+  title+=(int)z1;
+  title+=" m; Distance (m);Depth (m)";
+  mg->SetTitle(title);
+  
+  TCanvas *cRay2=new TCanvas("cRay2","cRay2");
+  cRay2->cd();
+  mg->Draw("AP");
+  mg->GetXaxis()->SetNdivisions(20);
+  cRay2->SetGridx();
+  cRay2->SetGridy();
+}
+
+/* This is the main raytracing function. x0 always has to be zero. z0 is the Tx depth in m and z1 is the depth of the Rx in m. Both depths are negative. x1 is the distance between them. This functions works for a constant refractive index */
+double *IceRayTracing_Cnz(double x0, double z0, double x1, double z1, double A_ice_Cnz){
+
+  /* define a pointer to give back the output of raytracing */ 
+  double *output=new double[9];
+
+  /* Store the ray paths in text files */
+  bool PlotRayPaths=true;
+  
+  /*  ********This part of the code will try to get the Direct ray between Rx and Tx.********** */
+  double* GetDirectRay=GetDirectRayPar_Cnz(z0,x1,z1,A_ice_Cnz);
+  double RangD=GetDirectRay[0];
+  double LangD=GetDirectRay[1];
+  double timeD=GetDirectRay[2];
+  double lvalueD=GetDirectRay[3];
+  double checkzeroD=GetDirectRay[4];
+  delete []GetDirectRay;
+  
+  /* ********This part of the code will try to get the Reflected ray between Rx and Tx.********** */
+  double* GetReflectedRay=GetReflectedRayPar_Cnz(z0,x1,z1,A_ice_Cnz);
+  double RangR=GetReflectedRay[0];
+  double LangR=GetReflectedRay[1];
+  double timeR=GetReflectedRay[2];
+  double lvalueR=GetReflectedRay[3];
+  double checkzeroR=GetReflectedRay[4];
+  double timeR1=GetReflectedRay[5];
+  double timeR2=GetReflectedRay[6];
+  double AngleOfIncidenceInIce=GetReflectedRay[7];
+  delete []GetReflectedRay; 
+
+  /* This part of the code can be used if the user wants to plot the individual ray paths. This part of the code prints out the individual ray paths in text files and also plots them on a canvas */
+  if(PlotRayPaths==true){
+    double lvalues[2];
+    lvalues[0]=lvalueD;
+    lvalues[1]=lvalueR;
+    
+    PlotAndStoreRays_Cnz(x0,z0,z1,x1,lvalues,A_ice_Cnz);
+  }  
+
+  /* Fill in the output pointer after calculating all the results */
+  output[0]=LangD;
+  output[1]=LangR;
+  output[2]=timeD;
+  output[3]=timeR;
+  output[4]=RangD;
+  output[5]=RangR;
+  
+  /* fill in the output array part where you fill in the times for the two parts of the reflected or refracted rays */  
+  output[6]=timeR1;
+  output[7]=timeR2;
+  output[8]=AngleOfIncidenceInIce;
+
+  
+  return output;
+}
+
+
 void IceRayTracing_wROOTplot(double xTx, double yTx, double zTx, double xRx, double yRx, double zRx ){
 
   ////For recording how much time the process took
-  timestamp_t t0 = get_timestamp();
+  auto t1b = std::chrono::high_resolution_clock::now();
   
   double TxCor[3]={xTx,yTx,zTx};
   double RxCor[3]={xRx,yRx,zRx};
@@ -1073,8 +1550,27 @@ void IceRayTracing_wROOTplot(double xTx, double yTx, double zTx, double xRx, dou
   
   delete []getresults;  
 
-  timestamp_t t1 = get_timestamp();
-  double secs = (t1 - t0) / 1000000.0L;
-  cout<<"total time taken by the script: "<<secs<<" s"<<endl;
+  double * getresults2=IceRayTracing_Cnz(x0,z0,x1,z1,1.4);
+
+  cout<<" "<<endl;
+  cout<<" For constant refractive index"<<endl;
+  cout<<"Direct and Reflected: dt(D,R)="<<(getresults2[3]-getresults2[2])*pow(10,9)<<" ns"<<endl;
+  cout<<"*******For the Direct Ray********"<<endl;
+  cout<<"Launch Angle: "<<getresults2[0]<<" deg"<<endl;
+  cout<<"Recieve Angle: "<<getresults2[4]<<" deg"<<endl;
+  cout<<"Propogation Time: "<<getresults2[2]*pow(10,9)<<" ns"<<endl;
+  cout<<"*******For the Reflected Ray********"<<endl;
+  cout<<"Launch Angle: "<<getresults2[1]<<" deg"<<endl;
+  cout<<"Recieve Angle: "<<getresults2[5]<<" deg"<<endl;
+  cout<<"Propogation Time: "<<getresults2[3]*pow(10,9)<<" ns"<<endl;
+  cout<<"Incident Angle in Ice on the Surface: "<<getresults2[8]<<" deg"<<endl;
+
+  delete []getresults2; 
+
+  auto t2b = std::chrono::high_resolution_clock::now();
+  double durationb = std::chrono::duration_cast<std::chrono::microseconds>( t2b - t1b ).count();
+
+  double Duration=durationb/1000;
+  cout<<"total time taken by the script: "<<Duration<<" ms"<<endl; 
   
 }

@@ -1161,8 +1161,8 @@ void IceRayTracing::GetFullDirectRayPath_Cnz(double z0, double x1, double z1, do
   struct IceRayTracing::fDnfR_params params6b;
   
   for(int i=0;i<dmax;i++){
-    params6a = {IceRayTracing::A_ice, GetB(zn), GetC(zn), lvalueD};
-    params6b = {IceRayTracing::A_ice, GetB(z0), GetC(z0), lvalueD};
+    params6a = {A_ice_Cnz, 0, 0, lvalueD};
+    params6b = {A_ice_Cnz, 0, 0, lvalueD};
     xn=fDnfR_Cnz(zn,&params6a)-fDnfR_Cnz(z0,&params6b);
     checknan=fDnfR(zn,&params6a);
     if(isnan(checknan)==false && Flip==false){
@@ -1249,8 +1249,8 @@ void IceRayTracing::GetFullReflectedRayPath_Cnz(double z0, double x1, double z1,
   /* Map out the 2nd part of the reflected ray */
   zn=0.0;
   for(int i=0;i<dmax;i++){  
-    params6a = {IceRayTracing::A_ice, 0, 0, lvalueR};
-    params6b = {IceRayTracing::A_ice, 0, 0, lvalueR};
+    params6a = {A_ice_Cnz, 0, 0, lvalueR};
+    params6b = {A_ice_Cnz, 0, 0, lvalueR};
     xn=fDnfR_Cnz(zn,&params6a)-fDnfR_Cnz(z0,&params6b);
     checknan=fDnfR_Cnz(zn,&params6a);
     if(isnan(checknan)==false && Flip==false){
