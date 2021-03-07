@@ -1130,7 +1130,7 @@ double *IceRayTracing::GetReflectedRayPar_Cnz(double z0, double x1 , double z1, 
 }
 
 /* This function returns the x and z values for the full Direct ray path in a TGraph and also prints out the ray path in a text file. This is for a constant refractive index. */
-TGraph* IceRayTracing::GetFullDirectRayPath_Cnz(double z0, double x1, double z1, double lvalueD, double A_ice_Cnz){
+void IceRayTracing::GetFullDirectRayPath_Cnz(double z0, double x1, double z1, double lvalueD, double A_ice_Cnz){
 
   /* My raytracer can only work the Tx is below the Rx. If the Tx is higher than the Rx than we need to flip the depths to allow for raytracing and then we will flip them back later at the end */
   bool Flip=false;
@@ -1157,21 +1157,18 @@ TGraph* IceRayTracing::GetFullDirectRayPath_Cnz(double z0, double x1, double z1,
   struct IceRayTracing::fDnfR_params params6a;
   struct IceRayTracing::fDnfR_params params6b;
   
-  TGraph *gr1=new TGraph();
   for(int i=0;i<dmax;i++){
     params6a = {IceRayTracing::A_ice, GetB(zn), GetC(zn), lvalueD};
     params6b = {IceRayTracing::A_ice, GetB(z0), GetC(z0), lvalueD};
     xn=fDnfR_Cnz(zn,&params6a)-fDnfR_Cnz(z0,&params6b);
     checknan=fDnfR(zn,&params6a);
     if(isnan(checknan)==false && Flip==false){
-      gr1->SetPoint(npnt,xn,zn);
-      //aoutD<<npnt<<" "<<xn<<" "<<zn<<endl;;
+      aoutD<<npnt<<" "<<xn<<" "<<zn<<endl;;
       npnt++;
     }
 
     if(isnan(checknan)==false && Flip==true){
-      gr1->SetPoint(npnt,x1-xn,zn);
-      //aoutD<<npnt<<" "<<x1-xn<<" "<<zn<<endl;;
+      aoutD<<npnt<<" "<<x1-xn<<" "<<zn<<endl;;
       npnt++;
     }
 
@@ -1181,7 +1178,7 @@ TGraph* IceRayTracing::GetFullDirectRayPath_Cnz(double z0, double x1, double z1,
       i=dmax+2;      
     }  
   }
-  gr1->SetPoint(npnt,0,z0);
+
   npnt++;
   
   dsw=0;
@@ -1191,13 +1188,11 @@ TGraph* IceRayTracing::GetFullDirectRayPath_Cnz(double z0, double x1, double z1,
     z0=z1;
     z1=dsw;
   }
-  
-  return gr1;
 
 }
 
 /* This function returns the x and z values for the full Reflected ray path in a TGraph and also prints out the ray path in a text file. This is for a constant refractive index. */
-TGraph* IceRayTracing::GetFullReflectedRayPath_Cnz(double z0, double x1, double z1, double lvalueR, double A_ice_Cnz){
+void IceRayTracing::GetFullReflectedRayPath_Cnz(double z0, double x1, double z1, double lvalueR, double A_ice_Cnz){
 
   /* My raytracer can only work the Tx is below the Rx. If the Tx is higher than the Rx than we need to flip the depths to allow for raytracing and then we will flip them back later at the end */
   bool Flip=false;
@@ -1226,7 +1221,6 @@ TGraph* IceRayTracing::GetFullReflectedRayPath_Cnz(double z0, double x1, double 
   struct IceRayTracing::fDnfR_params params6c;
 
   /* Map out the 1st part of the reflected ray */
-  TGraph *gr2=new TGraph();
   for(int i=0;i<dmax;i++){
     params6a = {A_ice_Cnz, 0, 0, lvalueR};
     params6b = {A_ice_Cnz, 0, 0, lvalueR};
@@ -1234,14 +1228,12 @@ TGraph* IceRayTracing::GetFullReflectedRayPath_Cnz(double z0, double x1, double 
     xn=(fDnfR_Cnz(-zn,&params6a)-fDnfR_Cnz(-z0,&params6b)+2*fabs(fDnfR_Cnz(0.0,&params6c)-fDnfR_Cnz(-z0,&params6b)));
     checknan=fDnfR_Cnz(-zn,&params6a);
     if(isnan(checknan)==false && zn<=0 && Flip==false){
-      gr2->SetPoint(npnt,xn,zn);
-      //aoutR<<npnt<<" "<<xn<<" "<<zn<<endl;
+      aoutR<<npnt<<" "<<xn<<" "<<zn<<endl;
       npnt++;
     }
 
     if(isnan(checknan)==false && zn<=0 && Flip==true){
-      gr2->SetPoint(npnt,x1-xn,zn);
-      //aoutR<<npnt<<" "<<x1-xn<<" "<<zn<<endl;
+      aoutR<<npnt<<" "<<x1-xn<<" "<<zn<<endl;
       npnt++;
     }
       
@@ -1259,14 +1251,12 @@ TGraph* IceRayTracing::GetFullReflectedRayPath_Cnz(double z0, double x1, double 
     xn=fDnfR_Cnz(zn,&params6a)-fDnfR_Cnz(z0,&params6b);
     checknan=fDnfR_Cnz(zn,&params6a);
     if(isnan(checknan)==false && Flip==false){
-      gr2->SetPoint(npnt,xn,zn);
-      //aoutR<<npnt<<" "<<xn<<" "<<zn<<endl;
+      aoutR<<npnt<<" "<<xn<<" "<<zn<<endl;
       npnt++;
     }
       
     if(isnan(checknan)==false && Flip==true){
-      gr2->SetPoint(npnt,x1-xn,zn);
-      //aoutR<<npnt<<" "<<x1-xn<<" "<<zn<<endl;
+      aoutR<<npnt<<" "<<x1-xn<<" "<<zn<<endl;
       npnt++;
     }
 
@@ -1284,11 +1274,8 @@ TGraph* IceRayTracing::GetFullReflectedRayPath_Cnz(double z0, double x1, double 
     z0=z1;
     z1=dsw;
   }
-  gr2->SetPoint(npnt,0,z0);
+ 
   npnt++;
-
-  
-  return gr2;
 
 }
 
@@ -1300,28 +1287,9 @@ void IceRayTracing::PlotAndStoreRays_Cnz(double x0,double z0, double z1, double 
 
   TMultiGraph *mg=new TMultiGraph();
   
-  TGraph *gr1=GetFullDirectRayPath_Cnz(z0,x1,z1,lvalueD,A_ice_Cnz);
-  TGraph *gr2=GetFullReflectedRayPath_Cnz(z0,x1,z1,lvalueR,A_ice_Cnz);
+  GetFullDirectRayPath_Cnz(z0,x1,z1,lvalueD,A_ice_Cnz);
+  GetFullReflectedRayPath_Cnz(z0,x1,z1,lvalueR,A_ice_Cnz);
  
-  gr1->SetMarkerColor(kBlue);
-  gr2->SetMarkerColor(kBlue); 
-  
-  /* Plot the all the possible ray paths on the canvas */
-  TGraph *gr4=new TGraph();
-  gr4->SetPoint(0,x1,z1);
-  gr4->SetMarkerStyle(20);
-  gr4->SetMarkerColor(kRed);
-
-  TGraph *gr4b=new TGraph();
-  gr4b->SetPoint(0,0,z0);
-  gr4b->SetMarkerStyle(20);
-  gr4b->SetMarkerColor(kGreen);
-    
-  gr1->SetMarkerStyle(20);
-  gr1->SetMarkerColor(2);
-
-  gr2->SetMarkerStyle(20);
-  gr2->SetMarkerColor(2);
 
   double zlower=z0;
   if(fabs(z0)<fabs(z1)){
@@ -1330,33 +1298,7 @@ void IceRayTracing::PlotAndStoreRays_Cnz(double x0,double z0, double z1, double 
   if(fabs(z0)>fabs(z1)){
     zlower=z0;
   }
-  TGraph *gr5=new TGraph();
-  gr5->SetPoint(0,0,zlower-50);
-  gr5->SetPoint(1,x1+50,0);
-
-  mg->Add(gr1);
-  mg->Add(gr2);
-  mg->Add(gr4);
-  mg->Add(gr4b);
-  //mg->Add(gr5);
-
-  TString title="Depth vs Distance, Tx at x=";
-  title+=x0;
-  title+=" m,z=";
-  title+=(int)z0;
-  title+=" m, Rx at x=";
-  title+=x1;
-  title+=" m,z=";
-  title+=(int)z1;
-  title+=" m; Distance (m);Depth (m)";
-  mg->SetTitle(title);
   
-  TCanvas *cRay=new TCanvas("cRay","cRay");
-  cRay->cd();
-  mg->Draw("AP");
-  mg->GetXaxis()->SetNdivisions(20);
-  cRay->SetGridx();
-  cRay->SetGridy();
 }
 
 /* This is the main raytracing function. x0 always has to be zero. z0 is the Tx depth in m and z1 is the depth of the Rx in m. Both depths are negative. x1 is the distance between them. This functions works for a constant refractive index */
