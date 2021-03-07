@@ -84,6 +84,22 @@ int main(int argc, char**argv){
   
   delete []getresults;  
 
+  double * getresults2=IceRayTracing::IceRayTracing_Cnz(x0,z0,x1,z1,1.4);
+
+  cout<<" For constant refractive index"<<endl;
+  cout<<"Direct and Reflected: dt(D,R)="<<(getresults2[3]-getresults2[2])*pow(10,9)<<" ns"<<endl;
+  cout<<"*******For the Direct Ray********"<<endl;
+  cout<<"Launch Angle: "<<getresults2[0]<<" deg"<<endl;
+  cout<<"Recieve Angle: "<<getresults2[4]<<" deg"<<endl;
+  cout<<"Propogation Time: "<<getresults2[2]*pow(10,9)<<" ns"<<endl;
+  cout<<"*******For the Reflected Ray********"<<endl;
+  cout<<"Launch Angle: "<<getresults2[1]<<" deg"<<endl;
+  cout<<"Recieve Angle: "<<getresults2[5]<<" deg"<<endl;
+  cout<<"Propogation Time: "<<getresults2[3]*pow(10,9)<<" ns"<<endl;
+  cout<<"Incident Angle in Ice on the Surface: "<<getresults2[8]<<" deg"<<endl;
+
+  delete []getresults2;
+  
   return 0;
 
   

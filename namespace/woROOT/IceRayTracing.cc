@@ -939,7 +939,7 @@ double IceRayTracing::fDnfR_Cnz(double x,void *params){
   double A = p->a;
   double L = p->l;
   
-  return tan(asin(L/A))*x;
+  return (L/sqrt(A*A-L*L))*x;
 }
 
 /* Analytical solution describing the ray path in ice as a function of the L parameter for constant refractive index*/
@@ -948,8 +948,14 @@ double IceRayTracing::fDnfR_L_Cnz(double x,void *params){
   struct IceRayTracing::fDnfR_L_params *p= (struct IceRayTracing::fDnfR_L_params *) params;
   double A = p->a;
   double Z = p->z;
-
-  return tan(asin(x/A))*Z;
+  
+  double out=0;
+  if(A>x){
+    out=(x/sqrt(A*A-x*x))*Z;
+  }else{
+    out=tan(asin(x/A))*Z;
+  }
+  return out;
 }
 
 /* The function used to calculate ray propogation time in ice for constant refractive index*/
@@ -960,7 +966,7 @@ double IceRayTracing::ftimeD_Cnz(double x,void *params){
   double Speedc = p->speedc;
   double L = p->l;
   
-  return ((A*x)/Speedc)*sqrt( tan(asin(L/A))*tan(asin(L/A))+1 );
+  return ((A*x)/Speedc)*sqrt( ((L*L)/(A*A-L*L)) + 1 );
 }
 
 /* This function is minimised to find the launch angle (or the L parameter) for the direct ray for constant refractive index */
@@ -1011,14 +1017,11 @@ double* IceRayTracing::GetDirectRayPar_Cnz(double z0, double x1, double z1, doub
   struct IceRayTracing::fDanfRa_params params1= {A_ice_Cnz, z0, x1, z1};
   F1.function = &fDa_Cnz;
   F1.params = &params1;
-
-  /* In my raytracing solution given in the function fDnfR_Cnz the launch angle (or the L parameter) has limit placed on it by this part in the solution that L<A. This sets the upper limit in our minimisation to get the launch angle (or the L parameter). Here I am basically setting the upper limit as GSL requires that my function is well behaved on the upper and lower bounds I give it for minimisation. */ 
-  double UpperLimitL=A_ice_Cnz;
-
-  /* Do the minimisation and get the value of the L parameter and the launch angle and then verify to see that the value of L that we got was actually a root of fDa_Cnz function. */
-  double lvalueD=FindFunctionRoot(F1,0.0,UpperLimitL);
-  double LangD=asin(lvalueD/A_ice_Cnz)*(180.0/IceRayTracing::pi);
-
+  
+  /* Calculate the launch angle and the value of the L parameter */
+  double LangD=(pi*0.5-atan(fabs(z1-z0)/x1))*(180.0/pi);
+  double lvalueD=A_ice_Cnz*sin(LangD*(pi/180.0));
+  
   /* Get the propagation time for the direct ray using the ftimeD function after we have gotten the value of the L parameter. */
   struct IceRayTracing::ftimeD_params params2a = {A_ice_Cnz, 0, 0, IceRayTracing::c_light_ms,lvalueD};
   struct IceRayTracing::ftimeD_params params2b = {A_ice_Cnz, 0, 0, IceRayTracing::c_light_ms,lvalueD};
@@ -1071,13 +1074,13 @@ double *IceRayTracing::GetReflectedRayPar_Cnz(double z0, double x1 , double z1, 
   F3.function = &fRa_Cnz;
   F3.params = &params3;
 
-  /* In my raytracing solution given in the function fDnfR_Cnz the launch angle (or the L parameter) has limit placed on it by this part in the solution that L<A . This sets the upper limit in our minimisation to get the launch angle (or the L parameter). Here I am basically setting the upper limit as GSL requires that my function is well behaved on the upper and lower bounds I give it for minimisation. */
-  double UpperLimitL=A_ice_Cnz;
+  /* In my raytracing solution given in the function fDnfR_Cnz the launch angle (or the L parameter) has limit placed on it by this part in the solution that L<A . This sets the upper limit in our minimisation to get the launch angle (or the L parameter). Here I am basically setting the upper limit to be the angle of the direct ray as GSL requires that my function is well behaved on the upper and lower bounds I give it for minimisation. */
+  double UpperLimitL=A_ice_Cnz*sin(pi*0.5-atan(fabs(z1-z0)/x1));
   
-  /* Do the minimisation and get the value of the L parameter and the launch angle and then verify to see that the value of L that we got was actually a root of fRa_Cnz function. */
+  /* Do the minimisation and get the value of the L parameter and the launch angle */
   double lvalueR=FindFunctionRoot(F3,0.0,UpperLimitL);
-  double LangR=asin(lvalueR/A_ice_Cnz)*(180.0/IceRayTracing::pi);
-
+  double LangR=asin(lvalueR/A_ice_Cnz)*(180.0/pi);
+  
   /* Get the propagation time for the reflected ray using the ftimeD function after we have gotten the value of the L parameter. */
   struct IceRayTracing::ftimeD_params params3a = {A_ice_Cnz, 0, 0, IceRayTracing::c_light_ms,lvalueR};
   struct IceRayTracing::ftimeD_params params3b = {A_ice_Cnz, 0, 0, IceRayTracing::c_light_ms,lvalueR};
@@ -1284,12 +1287,9 @@ void IceRayTracing::PlotAndStoreRays_Cnz(double x0,double z0, double z1, double 
   
   double lvalueD=lvalues[0];
   double lvalueR=lvalues[1];
-
-  TMultiGraph *mg=new TMultiGraph();
   
   GetFullDirectRayPath_Cnz(z0,x1,z1,lvalueD,A_ice_Cnz);
   GetFullReflectedRayPath_Cnz(z0,x1,z1,lvalueR,A_ice_Cnz);
- 
 
   double zlower=z0;
   if(fabs(z0)<fabs(z1)){
