@@ -581,8 +581,11 @@ TGraph* IceRayTracing::GetFullDirectRayPath(double z0, double x1, double z1,doub
       i=dmax+2;      
     }  
   }
-  gr1->SetPoint(npnt,0,z0);
-  npnt++;
+  if(Flip==true){
+    gr1->SetPoint(npnt,x1-xn,z0);
+  else{
+    gr1->SetPoint(npnt,xn,z0);
+  }
   
   dsw=0;
   /* If the Tx and Rx depth were switched then put them back to their original position */
@@ -676,7 +679,12 @@ TGraph* IceRayTracing::GetFullReflectedRayPath(double z0, double x1, double z1,d
       i=dmax+2;
     }
   }
-
+  if(Flip==true){
+    gr2->SetPoint(npnt,x1-xn,z0);
+  else{
+    gr2->SetPoint(npnt,xn,z0);
+  }
+  
   dsw=0;
   /* If the Tx and Rx depth were switched then put them back to their original position */
   if(Flip==true){
@@ -684,9 +692,6 @@ TGraph* IceRayTracing::GetFullReflectedRayPath(double z0, double x1, double z1,d
     z0=z1;
     z1=dsw;
   }
-  gr2->SetPoint(npnt,0,z0);
-  npnt++;
-
   
   return gr2;
 
@@ -772,9 +777,12 @@ TGraph* IceRayTracing::GetFullRefractedRayPath(double z0, double x1, double z1, 
       i=dmax+2;
     }
   }
-  gr3->SetPoint(npnt,0,z0);
-  npnt++;
-  
+  if(Flip==true){
+    gr3->SetPoint(npnt,x1-xn,z0);
+  else{
+    gr3->SetPoint(npnt,xn,z0);
+  }
+    
   dsw=0;
   /* If the Tx and Rx depth were switched then put them back to their original position */
   if(Flip==true){

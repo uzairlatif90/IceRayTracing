@@ -598,8 +598,13 @@ void GetFullDirectRayPath(double z0, double x1, double z1,double lvalueD, vector
       i=dmax+2;      
     }  
   }
-  z.push_back(z0);
-  x.push_back(0);
+  if(Flip==true){
+    z.push_back(z0);
+    x.push_back(x1-xn);
+  }else{
+    z.push_back(z0);
+    x.push_back(xn);
+  }
   
   dsw=0;
   /*If the Tx and Rx depth were switched then put them back to their original position */
@@ -694,8 +699,13 @@ void GetFullReflectedRayPath(double z0, double x1, double z1,double lvalueR, vec
       i=dmax+2;
     }
   }
-  z.push_back(z0);
-  x.push_back(0);
+  if(Flip==true){
+    z.push_back(z0);
+    x.push_back(x1-xn);
+  }else{
+    z.push_back(z0);
+    x.push_back(xn);
+  }
   
   dsw=0;
   /* If the Tx and Rx depth were switched then put them back to their original position */
@@ -790,8 +800,13 @@ void GetFullRefractedRayPath(double z0, double x1, double z1, double zmax, doubl
       i=dmax+2;
     }
   }
-  z.push_back(z0);
-  x.push_back(0);
+  if(Flip==true){
+    z.push_back(z0);
+    x.push_back(x1-xn);
+  }else{
+    z.push_back(z0);
+    x.push_back(xn);
+  }
   
   dsw=0;
   /* If the Tx and Rx depth were switched then put them back to their original position */

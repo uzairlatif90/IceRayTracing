@@ -596,8 +596,13 @@ TGraph* GetFullDirectRayPath(double z0, double x1, double z1,double lvalueD){
       i=dmax+2;      
     }  
   }
-  gr1->SetPoint(npnt,0,z0);
 
+  if(Flip==true){
+    gr1->SetPoint(npnt,x1-xn,z0);
+  }else{
+    gr1->SetPoint(npnt,xn,z0);
+  }
+  
   dsw=0;
   /* If the Tx and Rx depth were switched then put them back to their original position */
   if(Flip==true){
@@ -664,7 +669,7 @@ TGraph* GetFullReflectedRayPath(double z0, double x1, double z1,double lvalueR){
       i=dmax+2;      
     }
   }
-
+  
   /* Map out the 2nd part of the reflected ray */
   zn=-0.0000001;
   for(int i=0;i<dmax;i++){  
@@ -690,7 +695,12 @@ TGraph* GetFullReflectedRayPath(double z0, double x1, double z1,double lvalueR){
       i=dmax+2;
     }
   }
-  gr2->SetPoint(npnt,0,z0);
+
+  if(Flip==true){
+    gr2->SetPoint(npnt,x1-xn,z0);
+  }else{
+    gr2->SetPoint(npnt,xn,z0);
+  }
   
   dsw=0;
   /* If the Tx and Rx depth were switched then put them back to their original position */
@@ -784,7 +794,12 @@ TGraph* GetFullRefractedRayPath(double z0, double x1, double z1, double zmax, do
       i=dmax+2;
     }
   }
-  gr3->SetPoint(npnt,0,z0);
+
+  if(Flip==true){
+    gr3->SetPoint(npnt,x1-xn,z0);
+  }else{
+    gr3->SetPoint(npnt,xn,z0);
+  }
   
   dsw=0;
   /* If the Tx and Rx depth were switched then put them back to their original position */
