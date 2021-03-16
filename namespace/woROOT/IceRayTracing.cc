@@ -584,12 +584,18 @@ void IceRayTracing::GetFullDirectRayPath(double z0, double x1, double z1,double 
     }  
   }
   if(Flip==true){
+    params6a = {A_ice, GetB(zn), GetC(zn), lvalueD};
+    params6b = {A_ice, GetB(z0), GetC(z0), lvalueD};
+    xn=fDnfR(zn,&params6a)-fDnfR(z0,&params6b); 
+    z.push_back(z0);
     x.push_back(x1-xn);
-    z.push_back(z0);
   }else{
-    x.push_back(xn);
+    params6a = {A_ice, GetB(zn), GetC(zn), lvalueD};
+    params6b = {A_ice, GetB(z0), GetC(z0), lvalueD};
+    xn=fDnfR(zn,&params6a)-fDnfR(z0,&params6b);
     z.push_back(z0);
-  }
+    x.push_back(xn);
+  }  
   
   dsw=0;
   /*If the Tx and Rx depth were switched then put them back to their original position */
@@ -685,11 +691,17 @@ void IceRayTracing::GetFullReflectedRayPath(double z0, double x1, double z1,doub
     }
   }
   if(Flip==true){
+    params6a = {A_ice, GetB(zn), GetC(zn), lvalueR};
+    params6b = {A_ice, GetB(z0), GetC(z0), lvalueR};
+    xn=fDnfR(zn,&params6a)-fDnfR(z0,&params6b); 
+    z.push_back(z0);
     x.push_back(x1-xn);
-    z.push_back(z0);
   }else{
-    x.push_back(xn);
+    params6a = {A_ice, GetB(zn), GetC(zn), lvalueR};
+    params6b = {A_ice, GetB(z0), GetC(z0), lvalueR};
+    xn=fDnfR(zn,&params6a)-fDnfR(z0,&params6b);
     z.push_back(z0);
+    x.push_back(xn);
   }
   
   dsw=0;
@@ -786,13 +798,19 @@ void IceRayTracing::GetFullRefractedRayPath(double z0, double x1, double z1, dou
     }
   }
   if(Flip==true){
+    params6a = {A_ice, GetB(zn), GetC(zn), lvalueRa};
+    params6b = {A_ice, GetB(z0), GetC(z0), lvalueRa};
+    xn=fDnfR(zn,&params6a)-fDnfR(z0,&params6b); 
+    z.push_back(z0);
     x.push_back(x1-xn);
-    z.push_back(z0);
   }else{
-    x.push_back(xn);
+    params6a = {A_ice, GetB(zn), GetC(zn), lvalueRa};
+    params6b = {A_ice, GetB(z0), GetC(z0), lvalueRa};
+    xn=fDnfR(zn,&params6a)-fDnfR(z0,&params6b);
     z.push_back(z0);
+    x.push_back(xn);
   }
-  
+
   dsw=0;
   /* If the Tx and Rx depth were switched then put them back to their original position */
   if(Flip==true){
@@ -1148,7 +1166,7 @@ double *IceRayTracing::GetReflectedRayPar_Cnz(double z0, double x1 , double z1, 
 }
 
 /* This function returns the x and z values for the full Direct ray path in a TGraph and also prints out the ray path in a text file. This is for a constant refractive index. */
-void IceRayTracing::GetFullDirectRayPath_Cnz(double z0, double x1, double z1, double lvalueD, double A_ice_Cnz){
+void IceRayTracing::GetFullDirectRayPath_Cnz(double z0, double x1, double z1, double lvalueD, double A_ice_Cnz, vector <double> &x, vector <double> &z){
 
   /* My raytracer can only work the Tx is below the Rx. If the Tx is higher than the Rx than we need to flip the depths to allow for raytracing and then we will flip them back later at the end */
   bool Flip=false;
@@ -1160,7 +1178,7 @@ void IceRayTracing::GetFullDirectRayPath_Cnz(double z0, double x1, double z1, do
   }
    
   /* Set the name of the text files */
-  //ofstream aoutD("DirectRay.txt");
+  //ofstream aoutD("DirectRay_Cnz.txt");
   /* Set the step size for plotting */
   double h=0.1;
   /* Set the total steps required for looping over the whole ray path */
@@ -1181,12 +1199,16 @@ void IceRayTracing::GetFullDirectRayPath_Cnz(double z0, double x1, double z1, do
     xn=fDnfR_Cnz(zn,&params6a)-fDnfR_Cnz(z0,&params6b);
     checknan=fDnfR(zn,&params6a);
     if(isnan(checknan)==false && Flip==false){
-      aoutD<<npnt<<" "<<xn<<" "<<zn<<endl;;
+      //aoutD<<npnt<<" "<<xn<<" "<<zn<<endl;;
+      x.push_back(xn);
+      z.push_back(zn);
       npnt++;
     }
 
     if(isnan(checknan)==false && Flip==true){
-      aoutD<<npnt<<" "<<x1-xn<<" "<<zn<<endl;;
+      //aoutD<<npnt<<" "<<x1-xn<<" "<<zn<<endl;;
+      x.push_back(x1-xn);
+      z.push_back(zn);
       npnt++;
     }
 
@@ -1196,8 +1218,22 @@ void IceRayTracing::GetFullDirectRayPath_Cnz(double z0, double x1, double z1, do
       i=dmax+2;      
     }  
   }
+  if(Flip==true){
+    params6a = {A_ice_Cnz, 0, 0, lvalueD};
+    params6b = {A_ice_Cnz, 0, 0, lvalueD};
+    xn=fDnfR_Cnz(zn,&params6a)-fDnfR_Cnz(z0,&params6b); 
+    x.push_back(x1-xn);
+    z.push_back(zn);
+    //aoutD<<npnt<<" "<<x1-xn<<" "<<zn<<endl;;
+  }else{
+    params6a = {A_ice_Cnz, 0, 0, lvalueD};
+    params6b = {A_ice_Cnz, 0, 0, lvalueD};
+    xn=fDnfR_Cnz(zn,&params6a)-fDnfR_Cnz(z0,&params6b);
+    x.push_back(xn);
+    z.push_back(zn);
+    //aoutD<<npnt<<" "<<xn<<" "<<zn<<endl;;
+  }
 
-  npnt++;
   
   dsw=0;
   /* If the Tx and Rx depth were switched then put them back to their original position */
@@ -1210,7 +1246,7 @@ void IceRayTracing::GetFullDirectRayPath_Cnz(double z0, double x1, double z1, do
 }
 
 /* This function returns the x and z values for the full Reflected ray path in a TGraph and also prints out the ray path in a text file. This is for a constant refractive index. */
-void IceRayTracing::GetFullReflectedRayPath_Cnz(double z0, double x1, double z1, double lvalueR, double A_ice_Cnz){
+void IceRayTracing::GetFullReflectedRayPath_Cnz(double z0, double x1, double z1, double lvalueR, double A_ice_Cnz, vector <double> &x, vector <double> &z){
 
   /* My raytracer can only work the Tx is below the Rx. If the Tx is higher than the Rx than we need to flip the depths to allow for raytracing and then we will flip them back later at the end */
   bool Flip=false;
@@ -1222,7 +1258,7 @@ void IceRayTracing::GetFullReflectedRayPath_Cnz(double z0, double x1, double z1,
   }
   
   // /* Set the name of the text files */
-  // ofstream aoutR("ReflectedRay.txt");
+  // ofstream aoutR("ReflectedRay_Cnz.txt");
   /* Set the step size for plotting. */
   double h=0.1;
   /* Set the total steps required for looping over the whole ray path */
@@ -1246,12 +1282,16 @@ void IceRayTracing::GetFullReflectedRayPath_Cnz(double z0, double x1, double z1,
     xn=(fDnfR_Cnz(-zn,&params6a)-fDnfR_Cnz(-z0,&params6b)+2*fabs(fDnfR_Cnz(0.0,&params6c)-fDnfR_Cnz(-z0,&params6b)));
     checknan=fDnfR_Cnz(-zn,&params6a);
     if(isnan(checknan)==false && zn<=0 && Flip==false){
-      aoutR<<npnt<<" "<<xn<<" "<<zn<<endl;
+      //aoutR<<npnt<<" "<<xn<<" "<<zn<<endl;
+      x.push_back(xn);
+      z.push_back(zn);
       npnt++;
     }
 
     if(isnan(checknan)==false && zn<=0 && Flip==true){
-      aoutR<<npnt<<" "<<x1-xn<<" "<<zn<<endl;
+      //aoutR<<npnt<<" "<<x1-xn<<" "<<zn<<endl;
+      x.push_back(x1-xn);
+      z.push_back(zn);
       npnt++;
     }
       
@@ -1269,12 +1309,16 @@ void IceRayTracing::GetFullReflectedRayPath_Cnz(double z0, double x1, double z1,
     xn=fDnfR_Cnz(zn,&params6a)-fDnfR_Cnz(z0,&params6b);
     checknan=fDnfR_Cnz(zn,&params6a);
     if(isnan(checknan)==false && Flip==false){
-      aoutR<<npnt<<" "<<xn<<" "<<zn<<endl;
+      //aoutR<<npnt<<" "<<xn<<" "<<zn<<endl;
+      x.push_back(xn);
+      z.push_back(zn);
       npnt++;
     }
       
     if(isnan(checknan)==false && Flip==true){
-      aoutR<<npnt<<" "<<x1-xn<<" "<<zn<<endl;
+      //aoutR<<npnt<<" "<<x1-xn<<" "<<zn<<endl;
+      x.push_back(x1-xn);
+      z.push_back(zn);
       npnt++;
     }
 
@@ -1284,7 +1328,22 @@ void IceRayTracing::GetFullReflectedRayPath_Cnz(double z0, double x1, double z1,
       i=dmax+2;
     }
   }
-
+  if(Flip==true){
+    params6a = {A_ice_Cnz, 0, 0, lvalueR};
+    params6b = {A_ice_Cnz, 0, 0, lvalueR};
+    xn=fDnfR_Cnz(zn,&params6a)-fDnfR_Cnz(z0,&params6b); 
+    x.push_back(x1-xn);
+    z.push_back(zn);
+    //aoutR<<npnt<<" "<<x1-xn<<" "<<zn<<endl;;
+  }else{
+    params6a = {A_ice_Cnz, 0, 0, lvalueR};
+    params6b = {A_ice_Cnz, 0, 0, lvalueR};
+    xn=fDnfR_Cnz(zn,&params6a)-fDnfR_Cnz(z0,&params6b);
+    x.push_back(xn);
+    z.push_back(zn);
+    //aoutR<<npnt<<" "<<xn<<" "<<zn<<endl;;
+  }
+  
   dsw=0;
   /* If the Tx and Rx depth were switched then put them back to their original position */
   if(Flip==true){
@@ -1292,8 +1351,6 @@ void IceRayTracing::GetFullReflectedRayPath_Cnz(double z0, double x1, double z1,
     z0=z1;
     z1=dsw;
   }
- 
-  npnt++;
 
 }
 
@@ -1303,17 +1360,11 @@ void IceRayTracing::PlotAndStoreRays_Cnz(double x0,double z0, double z1, double 
   double lvalueD=lvalues[0];
   double lvalueR=lvalues[1];
   
-  GetFullDirectRayPath_Cnz(z0,x1,z1,lvalueD,A_ice_Cnz);
-  GetFullReflectedRayPath_Cnz(z0,x1,z1,lvalueR,A_ice_Cnz);
+  vector <double> xD,zD;
+  vector <double> xR,zR;
+  GetFullDirectRayPath_Cnz(z0,x1,z1,lvalueD,A_ice_Cnz,xD,zD);
+  GetFullReflectedRayPath_Cnz(z0,x1,z1,lvalueR,A_ice_Cnz,xR,zR);
 
-  double zlower=z0;
-  if(fabs(z0)<fabs(z1)){
-    zlower=z1;
-  }
-  if(fabs(z0)>fabs(z1)){
-    zlower=z0;
-  }
-  
 }
 
 /* This is the main raytracing function. x0 always has to be zero. z0 is the Tx depth in m and z1 is the depth of the Rx in m. Both depths are negative. x1 is the distance between them. This functions works for a constant refractive index */

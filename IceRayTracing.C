@@ -598,13 +598,20 @@ void GetFullDirectRayPath(double z0, double x1, double z1,double lvalueD, vector
       i=dmax+2;      
     }  
   }
+
   if(Flip==true){
+    params6a = {A_ice, GetB(zn), GetC(zn), lvalueD};
+    params6b = {A_ice, GetB(z0), GetC(z0), lvalueD};
+    xn=fDnfR(zn,&params6a)-fDnfR(z0,&params6b); 
     z.push_back(z0);
     x.push_back(x1-xn);
   }else{
+    params6a = {A_ice, GetB(zn), GetC(zn), lvalueD};
+    params6b = {A_ice, GetB(z0), GetC(z0), lvalueD};
+    xn=fDnfR(zn,&params6a)-fDnfR(z0,&params6b);
     z.push_back(z0);
     x.push_back(xn);
-  }
+  }  
   
   dsw=0;
   /*If the Tx and Rx depth were switched then put them back to their original position */
@@ -700,9 +707,15 @@ void GetFullReflectedRayPath(double z0, double x1, double z1,double lvalueR, vec
     }
   }
   if(Flip==true){
+    params6a = {A_ice, GetB(zn), GetC(zn), lvalueR};
+    params6b = {A_ice, GetB(z0), GetC(z0), lvalueR};
+    xn=fDnfR(zn,&params6a)-fDnfR(z0,&params6b); 
     z.push_back(z0);
     x.push_back(x1-xn);
   }else{
+    params6a = {A_ice, GetB(zn), GetC(zn), lvalueR};
+    params6b = {A_ice, GetB(z0), GetC(z0), lvalueR};
+    xn=fDnfR(zn,&params6a)-fDnfR(z0,&params6b);
     z.push_back(z0);
     x.push_back(xn);
   }
@@ -801,9 +814,15 @@ void GetFullRefractedRayPath(double z0, double x1, double z1, double zmax, doubl
     }
   }
   if(Flip==true){
+    params6a = {A_ice, GetB(zn), GetC(zn), lvalueRa};
+    params6b = {A_ice, GetB(z0), GetC(z0), lvalueRa};
+    xn=fDnfR(zn,&params6a)-fDnfR(z0,&params6b); 
     z.push_back(z0);
     x.push_back(x1-xn);
   }else{
+    params6a = {A_ice, GetB(zn), GetC(zn), lvalueRa};
+    params6b = {A_ice, GetB(z0), GetC(z0), lvalueRa};
+    xn=fDnfR(zn,&params6a)-fDnfR(z0,&params6b);
     z.push_back(z0);
     x.push_back(xn);
   }
@@ -1161,7 +1180,7 @@ double *GetReflectedRayPar_Cnz(double z0, double x1 , double z1, double A_ice_Cn
 }
 
 /* This function returns the x and z values for the full Direct ray path in a TGraph and also prints out the ray path in a text file. This is for a constant refractive index. */
-void GetFullDirectRayPath_Cnz(double z0, double x1, double z1, double lvalueD, double A_ice_Cnz){
+void GetFullDirectRayPath_Cnz(double z0, double x1, double z1, double lvalueD, double A_ice_Cnz, vector <double> &x, vector <double> &z){
 
   /* My raytracer can only work the Tx is below the Rx. If the Tx is higher than the Rx than we need to flip the depths to allow for raytracing and then we will flip them back later at the end */
   bool Flip=false;
@@ -1173,7 +1192,7 @@ void GetFullDirectRayPath_Cnz(double z0, double x1, double z1, double lvalueD, d
   }
    
   /* Set the name of the text files */
-  ofstream aoutD("DirectRay.txt");
+  ofstream aoutD("DirectRay_Cnz.txt");
   /* Set the step size for plotting */
   double h=0.1;
   /* Set the total steps required for looping over the whole ray path */
@@ -1195,11 +1214,15 @@ void GetFullDirectRayPath_Cnz(double z0, double x1, double z1, double lvalueD, d
     checknan=fDnfR(zn,&params6a);
     if(isnan(checknan)==false && Flip==false){
       aoutD<<npnt<<" "<<xn<<" "<<zn<<endl;;
+      x.push_back(xn);
+      z.push_back(zn);
       npnt++;
     }
 
     if(isnan(checknan)==false && Flip==true){
       aoutD<<npnt<<" "<<x1-xn<<" "<<zn<<endl;;
+      x.push_back(x1-xn);
+      z.push_back(zn);
       npnt++;
     }
 
@@ -1210,7 +1233,21 @@ void GetFullDirectRayPath_Cnz(double z0, double x1, double z1, double lvalueD, d
     }  
   }
 
-  npnt++;
+  if(Flip==true){
+    params6a = {A_ice_Cnz, 0, 0, lvalueD};
+    params6b = {A_ice_Cnz, 0, 0, lvalueD};
+    xn=fDnfR_Cnz(zn,&params6a)-fDnfR_Cnz(z0,&params6b); 
+    x.push_back(x1-xn);
+    z.push_back(zn);
+    aoutD<<npnt<<" "<<x1-xn<<" "<<zn<<endl;;
+  }else{
+    params6a = {A_ice_Cnz, 0, 0, lvalueD};
+    params6b = {A_ice_Cnz, 0, 0, lvalueD};
+    xn=fDnfR_Cnz(zn,&params6a)-fDnfR_Cnz(z0,&params6b);
+    x.push_back(xn);
+    z.push_back(zn);
+    aoutD<<npnt<<" "<<xn<<" "<<zn<<endl;;
+  }
   
   dsw=0;
   /* If the Tx and Rx depth were switched then put them back to their original position */
@@ -1223,7 +1260,7 @@ void GetFullDirectRayPath_Cnz(double z0, double x1, double z1, double lvalueD, d
 }
 
 /* This function returns the x and z values for the full Reflected ray path in a TGraph and also prints out the ray path in a text file. This is for a constant refractive index. */
-void GetFullReflectedRayPath_Cnz(double z0, double x1, double z1, double lvalueR, double A_ice_Cnz){
+void GetFullReflectedRayPath_Cnz(double z0, double x1, double z1, double lvalueR, double A_ice_Cnz,vector <double> &x, vector <double> &z){
 
   /* My raytracer can only work the Tx is below the Rx. If the Tx is higher than the Rx than we need to flip the depths to allow for raytracing and then we will flip them back later at the end */
   bool Flip=false;
@@ -1235,7 +1272,7 @@ void GetFullReflectedRayPath_Cnz(double z0, double x1, double z1, double lvalueR
   }
   
   // /* Set the name of the text files */
-  ofstream aoutR("ReflectedRay.txt");
+  ofstream aoutR("ReflectedRay_Cnz.txt");
   /* Set the step size for plotting. */
   double h=0.1;
   /* Set the total steps required for looping over the whole ray path */
@@ -1259,11 +1296,15 @@ void GetFullReflectedRayPath_Cnz(double z0, double x1, double z1, double lvalueR
     xn=(fDnfR_Cnz(-zn,&params6a)-fDnfR_Cnz(-z0,&params6b)+2*fabs(fDnfR_Cnz(0.0,&params6c)-fDnfR_Cnz(-z0,&params6b)));
     checknan=fDnfR_Cnz(-zn,&params6a);
     if(isnan(checknan)==false && zn<=0 && Flip==false){
+      x.push_back(xn);
+      z.push_back(zn);
       aoutR<<npnt<<" "<<xn<<" "<<zn<<endl;
       npnt++;
     }
 
     if(isnan(checknan)==false && zn<=0 && Flip==true){
+      x.push_back(x1-xn);
+      z.push_back(zn);
       aoutR<<npnt<<" "<<x1-xn<<" "<<zn<<endl;
       npnt++;
     }
@@ -1282,11 +1323,15 @@ void GetFullReflectedRayPath_Cnz(double z0, double x1, double z1, double lvalueR
     xn=fDnfR_Cnz(zn,&params6a)-fDnfR_Cnz(z0,&params6b);
     checknan=fDnfR_Cnz(zn,&params6a);
     if(isnan(checknan)==false && Flip==false){
+      x.push_back(xn);
+      z.push_back(zn);
       aoutR<<npnt<<" "<<xn<<" "<<zn<<endl;
       npnt++;
     }
       
     if(isnan(checknan)==false && Flip==true){
+      x.push_back(x1-xn);
+      z.push_back(zn);
       aoutR<<npnt<<" "<<x1-xn<<" "<<zn<<endl;
       npnt++;
     }
@@ -1298,6 +1343,22 @@ void GetFullReflectedRayPath_Cnz(double z0, double x1, double z1, double lvalueR
     }
   }
 
+  if(Flip==true){
+    params6a = {A_ice_Cnz, 0, 0, lvalueR};
+    params6b = {A_ice_Cnz, 0, 0, lvalueR};
+    xn=fDnfR_Cnz(zn,&params6a)-fDnfR_Cnz(z0,&params6b); 
+    x.push_back(x1-xn);
+    z.push_back(zn);
+    aoutR<<npnt<<" "<<x1-xn<<" "<<zn<<endl;;
+  }else{
+    params6a = {A_ice_Cnz, 0, 0, lvalueR};
+    params6b = {A_ice_Cnz, 0, 0, lvalueR};
+    xn=fDnfR_Cnz(zn,&params6a)-fDnfR_Cnz(z0,&params6b);
+    x.push_back(xn);
+    z.push_back(zn);
+    aoutR<<npnt<<" "<<xn<<" "<<zn<<endl;;
+  }
+  
   dsw=0;
   /* If the Tx and Rx depth were switched then put them back to their original position */
   if(Flip==true){
@@ -1315,17 +1376,11 @@ void PlotAndStoreRays_Cnz(double x0,double z0, double z1, double x1, double lval
   
   double lvalueD=lvalues[0];
   double lvalueR=lvalues[1];
-  
-  GetFullDirectRayPath_Cnz(z0,x1,z1,lvalueD,A_ice_Cnz);
-  GetFullReflectedRayPath_Cnz(z0,x1,z1,lvalueR,A_ice_Cnz);
 
-  double zlower=z0;
-  if(fabs(z0)<fabs(z1)){
-    zlower=z1;
-  }
-  if(fabs(z0)>fabs(z1)){
-    zlower=z0;
-  }
+  vector <double> xD,zD;
+  vector <double> xR,zR;
+  GetFullDirectRayPath_Cnz(z0,x1,z1,lvalueD,A_ice_Cnz,xD,zD);
+  GetFullReflectedRayPath_Cnz(z0,x1,z1,lvalueR,A_ice_Cnz,xR,zR);
   
 }
 

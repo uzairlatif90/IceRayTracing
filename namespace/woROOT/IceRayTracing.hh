@@ -131,10 +131,10 @@ namespace IceRayTracing{
   double *GetReflectedRayPar_Cnz(double z0, double x1 , double z1, double A_ice_Cnz);
 
   /* This function returns the x and z values for the full Direct ray path in a TGraph and also prints out the ray path in a text file. This is for a constant refractive index. */
-  void GetFullDirectRayPath_Cnz(double z0, double x1, double z1, double lvalueD, double A_ice_Cnz);
+  void GetFullDirectRayPath_Cnz(double z0, double x1, double z1, double lvalueD, double A_ice_Cnz, vector <double> &x, vector <double> &z);
 
   /* This function returns the x and z values for the full Reflected ray path in a TGraph and also prints out the ray path in a text file. This is for a constant refractive index. */
-  void GetFullReflectedRayPath_Cnz(double z0, double x1, double z1, double lvalueR, double A_ice_Cnz);
+  void GetFullReflectedRayPath_Cnz(double z0, double x1, double z1, double lvalueR, double A_ice_Cnz, vector <double> &x, vector <double> &z);
 
   /* function for plotting and storing all the rays. This is for constant refractive index. */
   void PlotAndStoreRays_Cnz(double x0,double z0, double z1, double x1, double lvalues[2], double A_ice_Cnz);
