@@ -957,7 +957,7 @@ double *IceRayTracing::IceRayTracing(double x0, double z0, double x1, double z1)
   if(fabs(checkzeroR)>0.5){
     output[7]=-1000;
   }
-  if(fabs(checkzeroRa)>0.5){
+  if(fabs(checkzeroRa)>0.5 || (fabs(checkzeroD)<0.5 && fabs(checkzeroR)<0.5)){
     output[8]=-1000;
   }
   
@@ -1192,7 +1192,6 @@ void IceRayTracing::GetFullDirectRayPath_Cnz(double z0, double x1, double z1, do
     z.push_back(zn);
     //aoutD<<npnt<<" "<<xn<<" "<<zn<<endl;;
   }
-
   
   dsw=0;
   /* If the Tx and Rx depth were switched then put them back to their original position */
