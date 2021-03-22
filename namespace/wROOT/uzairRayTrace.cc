@@ -41,11 +41,11 @@ int main(int argc, char**argv){
 
   cout<<" "<<endl;
   cout<<"x0="<<x0<<" m , z0="<<z0<<" m ,x1="<<x1<<" m ,z1="<<z1<<" m "<<endl;
-  if(getresults[6]!=0 && getresults[7]!=0 && getresults[8]!=0){
+  if(getresults[6]!=-1000 && getresults[7]!=-1000 && getresults[8]!=-1000){
     cout<<"No Possible Ray Paths between Tx and Rx!!! :("<<endl;
   }
   
-  if(getresults[6]!=0 && getresults[8]!=0){ 
+  if(getresults[6]!=-1000 && getresults[8]!=-1000){ 
     cout<<"Direct and Refracted: dt(D,R)="<<(getresults[5]-getresults[3])*pow(10,9)<<" ns"<<endl;
     cout<<"*******For the Direct Ray********"<<endl;
     cout<<"Launch Angle: "<<getresults[0]<<" deg"<<endl;
@@ -57,7 +57,7 @@ int main(int argc, char**argv){
     cout<<"Propogation Time: "<<getresults[5]*pow(10,9)<<" ns"<<endl;
   }
       
-  if(getresults[6]!=0 && getresults[7]!=0){
+  if(getresults[6]!=-1000 && getresults[7]!=-1000){
     cout<<"Direct and Reflected: dt(D,R)="<<(getresults[4]-getresults[3])*pow(10,9)<<" ns"<<endl;
     cout<<"*******For the Direct Ray********"<<endl;
     cout<<"Launch Angle: "<<getresults[0]<<" deg"<<endl;
@@ -70,7 +70,7 @@ int main(int argc, char**argv){
     cout<<"Incident Angle in Ice on the Surface: "<<getresults[11]<<" deg"<<endl;
   }
       
-  if(getresults[8]!=0 && getresults[7]!=0 && getresults[6]==0){
+  if(getresults[8]!=-1000 && getresults[7]!=-1000){
     cout<<"Refracted and Reflected: dt(D,R)="<<(getresults[4]-getresults[5])*pow(10,9)<<" ns "<<endl;
     cout<<"*******For the Reflected Ray********"<<endl;
     cout<<"Launch Angle: "<<getresults[1]<<" deg"<<endl;
@@ -86,7 +86,7 @@ int main(int argc, char**argv){
 
   double * getresults2=IceRayTracing::IceRayTracing_Cnz(x0,z0,x1,z1,1.4);
 
-  cout<<" For constant refractive index"<<endl;
+  cout<<"************For constant refractive index*************"<<endl;
   cout<<"Direct and Reflected: dt(D,R)="<<(getresults2[3]-getresults2[2])*pow(10,9)<<" ns"<<endl;
   cout<<"*******For the Direct Ray********"<<endl;
   cout<<"Launch Angle: "<<getresults2[0]<<" deg"<<endl;
