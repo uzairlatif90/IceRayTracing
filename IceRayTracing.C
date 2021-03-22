@@ -1037,7 +1037,7 @@ double* GetDirectRayPar_Cnz(double z0, double x1, double z1, double A_ice_Cnz){
   /* Calculate the launch angle and the value of the L parameter */
   double LangD=(pi*0.5-atan(fabs(z1-z0)/x1))*(180.0/pi);
   double lvalueD=A_ice_Cnz*sin(LangD*(pi/180.0));
-  double timeD=(sqrt( pow(x1,2) + pow(z1-z0,2) )/IceRayTracing::c_light_ms)*A_ice_Cnz;
+  double timeD=(sqrt( pow(x1,2) + pow(z1-z0,2) )/spedc)*A_ice_Cnz;
   
   /* Calculate the recieve angle for direct rays by which is the same as the launch angle */
   double RangD=LangD;
@@ -1093,8 +1093,8 @@ double *GetReflectedRayPar_Cnz(double z0, double x1 , double z1, double A_ice_Cn
   
   /* In the reflected case we basically have two direct rays 1) from Tx to surface 2) from surface to Rx. . Also get the time for the two individual direct rays separately */
   double z2=0,x2=fabs(z0)*tan(LangR*(pi/180));///coordinates of point of incidence in ice at the surface
-  double timeR1=(sqrt( pow(x2,2) + pow(z2-z0,2) )/IceRayTracing::c_light_ms)*A_ice_Cnz;
-  double timeR2=(sqrt( pow(x2-x1,2) + pow(z2-z1,2) )/IceRayTracing::c_light_ms)*A_ice_Cnz;
+  double timeR1=(sqrt( pow(x2,2) + pow(z2-z0,2) )/spedc)*A_ice_Cnz;
+  double timeR2=(sqrt( pow(x2-x1,2) + pow(z2-z1,2) )/spedc)*A_ice_Cnz;
   double timeR= timeR1 + timeR2;
   
   /* flip the times back if the original positions were flipped */
