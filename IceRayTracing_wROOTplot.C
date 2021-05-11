@@ -30,7 +30,8 @@ double GetB(double z){
   z=fabs(z);
   double B=0;
 
-  B=-0.43;
+  //B=-0.43;
+  B=-0.48;
   return B;
 }
 
@@ -39,7 +40,8 @@ double GetC(double z){
   z=fabs(z);
   double C=0;
 
-  C=0.0132;
+  //C=0.0132;
+  C=0.02;
   return C;
 }
 
@@ -449,7 +451,7 @@ double *GetRefractedRayPar(double z0, double x1 ,double z1, double LangR, double
   F4.params = &params4;
 
   /* Do the minimisation and get the value of the L parameter and the launch angle and then verify to see that the value of L that we got was actually a root of fRaa function. The thing to note here is the lower limit of the minimisation function is set to the L value corresponding to the reflected ray launch angle. Since we know the refracted ray always has bigger launch angle the reflected ray this reduces our range and makes the function more efficient at finding the refracted ray launch angle. */
-  lvalueRa=FindFunctionRoot(F4,Getnz(z0)*sin(((LangR)*(pi/180.0))),UpperLimitL[0]);
+  lvalueRa=FindFunctionRoot(F4,Getnz(z0)*sin((LangR*(pi/180.0))),UpperLimitL[0]);
   LangRa=asin(lvalueRa/Getnz(z0))*(180.0/pi);
   checkzeroRa=fRaa(lvalueRa,&params4);
 
@@ -463,6 +465,17 @@ double *GetRefractedRayPar(double z0, double x1 ,double z1, double LangR, double
     iangstep=iangstep+5;
   }///end the second attempt    
 
+  if(fabs(LangRa-LangR)<pow(10,-1)){
+    iangstep=5;
+    while( (isnan(checkzeroRa)==true || fabs(checkzeroRa)>0.5 || fabs(lvalueRa-lvalueR)<pow(10,-5) || fabs(LangRa-LangR)<pow(10,-1)) && LangR>iangstep && iangstep<90){
+      //cout<<"2nd try to get Refracted ray "<<isnan(checkzeroRa)<<" "<<fabs(checkzeroRa)<<endl;
+      lvalueRa=FindFunctionRoot(F4,Getnz(z0)*sin(((LangR-iangstep)*(pi/180.0))),UpperLimitL[0]+0.01);
+      LangRa=asin(lvalueRa/Getnz(z0))*(180.0/pi);
+      checkzeroRa=fRaa(lvalueRa,&params4);
+      iangstep=iangstep+5;
+    }///end the second attempt    
+  }
+  
   /* If we still did not find a refracted ray then set the check zero parameter to 1000 to make sure my code does not output this as a possible solution */
   if(isnan(checkzeroRa)==true || LangRa==0){
     checkzeroRa=-1000;
@@ -471,6 +484,11 @@ double *GetRefractedRayPar(double z0, double x1 ,double z1, double LangR, double
   /* If we did find a possible refracted ray then now we need to find the depth at which the ray turns back down without hitting the surface. */
   zmax=GetZmax(A_ice,lvalueRa)+0.0000001;
 
+  if(fabs(LangR-LangRa)<0.1){
+    cout<<LangR<<" "<<LangRa<<" "<<LangR-LangRa<<" "<<zmax<<" "<<Getnz(z1)<<" "<<Getnz(z0)<<" "<<UpperLimitL[0]<<endl;
+  }
+
+  
   /* If the turning point depth also came out to be zero then now we are sure that there is no refracted ray */
   if(zmax==0.0000001){
     checkzeroRa=-1000;
@@ -993,6 +1011,10 @@ double *IceRayTracing(double x0, double z0, double x1, double z1){
     checkzeroes[2]=checkzeroRa;
     
     PlotAndStoreRays(x0,z0,z1,x1,zmax,lvalues,checkzeroes);
+  }
+
+  if(fabs(LangR-LangRa)<0.1){
+    cout<<LangR<<" "<<LangRa<<" "<<LangR-LangRa<<endl;
   }
   
   /* print out all the output from the code */
@@ -1520,7 +1542,7 @@ void IceRayTracing_wROOTplot(double xTx, double yTx, double zTx, double xRx, dou
   double * getresults=IceRayTracing(x0,z0,x1,z1);
 
   cout<<" "<<endl;
-  if(getresults[6]!=0 && getresults[8]!=0){ 
+  if(getresults[6]!=-1000 && getresults[8]!=-1000){ 
     cout<<"x0="<<x0<<" m , z0="<<z0<<" m ,x1="<<x1<<" m ,z1="<<z1<<" m "<<endl;
     cout<<"Direct and Refracted: dt(D,R)="<<(getresults[5]-getresults[3])*pow(10,9)<<" ns"<<endl;
     cout<<"*******For the Direct Ray********"<<endl;
@@ -1533,7 +1555,7 @@ void IceRayTracing_wROOTplot(double xTx, double yTx, double zTx, double xRx, dou
     cout<<"Propogation Time: "<<getresults[5]*pow(10,9)<<" ns"<<endl;
   }
       
-  if(getresults[6]!=0 && getresults[7]!=0){
+  if(getresults[6]!=-1000 && getresults[7]!=-1000){
     cout<<"x0="<<x0<<" m , z0="<<z0<<" m ,x1="<<x1<<" m ,z1="<<z1<<" m "<<endl;
     cout<<"Direct and Reflected: dt(D,R)="<<(getresults[4]-getresults[3])*pow(10,9)<<" ns"<<endl;
     cout<<"*******For the Direct Ray********"<<endl;
@@ -1547,7 +1569,7 @@ void IceRayTracing_wROOTplot(double xTx, double yTx, double zTx, double xRx, dou
     cout<<"Incident Angle in Ice on the Surface: "<<getresults[11]<<" deg"<<endl;
   }
       
-  if(getresults[8]!=0 && getresults[7]!=0 && getresults[6]==0){
+  if(getresults[8]!=-1000 && getresults[7]!=-1000){
     cout<<"x0="<<x0<<" m , z0="<<z0<<" m ,x1="<<x1<<" m ,z1="<<z1<<" m "<<endl;
     cout<<"Refracted and Reflected: dt(D,R)="<<(getresults[4]-getresults[5])*pow(10,9)<<" ns "<<endl;
     cout<<"*******For the Reflected Ray********"<<endl;
