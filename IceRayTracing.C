@@ -6,11 +6,13 @@
 #include <vector>
 #include <algorithm>
 #include <chrono>
+#include <sys/time.h>
+
 #include <gsl/gsl_errno.h>
 #include <gsl/gsl_math.h>
 #include <gsl/gsl_roots.h>
 #include <gsl/gsl_deriv.h>
-#include <sys/time.h>
+#include <gsl/gsl_integration.h>
 
 using namespace std;
 
@@ -19,6 +21,9 @@ const double spedc=299792458.0; /* Speed of Light in m/s */
 
 /* Set the value of the asymptotic parameter of the refractive index model */
 const double A_ice=1.78;
+const double TransitionBoundary=0;
+// const double A_ice=1.775;
+// const double TransitionBoundary=14.9;
 
 /* Get the value of the B parameter for the refractive index model */
 double GetB(double z){
@@ -26,6 +31,13 @@ double GetB(double z){
   double B=0;
 
   B=-0.43;
+  
+  // if(z<=TransitionBoundary){
+  //   B=-0.5019;
+  // }else{
+  //   B=-0.448023;
+  // }
+  
   return B;
 }
 
@@ -33,8 +45,15 @@ double GetB(double z){
 double GetC(double z){
   z=fabs(z);
   double C=0;
-  
+
   C=0.0132;
+ 
+  // if(z<=TransitionBoundary){
+  //   C=0.03247;
+  // }else{
+  //   C=0.02469;
+  // }
+ 
   return C;
 }
 
@@ -42,6 +61,43 @@ double GetC(double z){
 double Getnz(double z){
   z=fabs(z);
   return A_ice+GetB(z)*exp(-GetC(z)*z);
+}
+
+/* E-feild Power Fresnel coefficient for S-polarised wave which is perpendicular to the plane of propogation/incidence. This function gives you back the reflectance. The transmittance is T=1-R */
+double Refl_S(double thetai){
+
+  double Nair=1;
+  double Nice=Getnz(0); 
+  double n1=Nice;
+  double n2=Nair;
+  
+  double sqterm=sqrt(1-pow((n1/n2)*(sin(thetai)),2));
+  double num=n1*cos(thetai)-n2*sqterm;
+  double den=n1*cos(thetai)+n2*sqterm;
+  double RS=(num*num)/(den*den);
+
+  if(std::isnan(RS)){
+    RS=1;
+  }
+  return (RS);
+}
+
+/* E-feild Power Fresnel coefficient for P-polarised wave which is parallel to the plane of propogation/incidence. This function gives you back the reflectance. The transmittance is T=1-R */
+double Refl_P(double thetai){
+   
+  double Nair=1;
+  double Nice=Getnz(0); 
+  double n1=Nice;
+  double n2=Nair;
+
+  double sqterm=sqrt(1-pow((n1/n2)*(sin(thetai)),2));
+  double num=n1*sqterm-n2*cos(thetai);
+  double den=n1*sqterm+n2*cos(thetai);
+  double RP=(num*num)/(den*den);
+  if(std::isnan(RP)){
+    RP=1;
+  }
+  return (RP);
 }
 
 /* The temperature and attenuation model has been taken from AraSim which also took it from here http://icecube.wisc.edu/~araproject/radio/ . This is basically Matt Newcomb's icecube directory which has alot of information, plots and codes about South Pole Ice activities. Please read it if you find it interesting. */
@@ -75,24 +131,156 @@ double GetIceAttenuationLength(double z, double frequency){
   return Lval;
 }
 
-/* Use GSL minimiser which uses Brent's Method to find root for a given function. This will be used to find roots wherever it is needed in my code.  */
+/* Setup the integrand to calculate the attenuation */
+double AttenuationIntegrand (double x, void * params) {
+
+  double *p=(double*)params;
+
+  double A0=p[0];
+  double Frequency=p[1];
+  double L=p[2];
+
+  double Integrand=(A0/GetIceAttenuationLength(x,Frequency))*sqrt(1+pow(tan(asin(L/Getnz(x))) ,2));
+  return Integrand;
+}
+
+/* Integrate over the integrand to calculate the attenuation */
+double IntegrateOverLAttn (double A0, double Frequency, double z0, double z1, double Lvalue) {
+  gsl_integration_workspace * w= gsl_integration_workspace_alloc (1000);
+
+  double result, error;
+  double zlimit[2] = {z0,z1};
+  double param[3] = {A0,Frequency,Lvalue};
+  
+  gsl_function F;
+  F.function = &AttenuationIntegrand;
+  F.params = &param;
+
+  gsl_integration_qags (&F, zlimit[0], zlimit[1], 0, 1e-7, 1000,
+                        w, &result, &error);
+
+  // printf ("result          = % .18f\n", result);
+  // printf ("estimated error = % .18f\n", error);
+  // printf ("intervals       = %zu\n", w->size);
+
+  gsl_integration_workspace_free (w);  
+
+  return fabs(result);
+}
+
+/* Calculate the total attenuation for each type of ray */
+double GetTotalAttenuationDirect (double A0, double frequency, double z0, double z1, double Lvalue) {
+  z0=fabs(z0);
+  z1=fabs(z1);
+  return IntegrateOverLAttn(A0,frequency,z0,z1,Lvalue);
+}
+
+double GetTotalAttenuationReflected (double A0, double frequency, double z0, double z1, double Lvalue) {
+  z0=fabs(z0);
+  z1=fabs(z1);
+  return IntegrateOverLAttn(A0,frequency,z0,0.000001,Lvalue) + IntegrateOverLAttn(A0,frequency,z1,0.000001,Lvalue);
+}
+
+double GetTotalAttenuationRefracted (double A0, double frequency, double z0, double z1, double zmax, double Lvalue) {
+  z0=fabs(z0);
+  z1=fabs(z1);
+  return IntegrateOverLAttn(A0,frequency,z0,zmax,Lvalue) + IntegrateOverLAttn(A0,frequency,z1,zmax,Lvalue);
+}
+
+/* Use GSL minimiser which relies on calculating function deriavtives. This function uses GSL's Newton's algorithm to find root for a given function. */
+double FindFunctionRootFDF(gsl_function_fdf FDF,double x_lo, double x_hi){
+  int status;
+  int iter = 0, max_iter = 100;
+  const gsl_root_fdfsolver_type *T;
+  gsl_root_fdfsolver *s;
+  double x0 ,x = (x_lo+x_hi)/2;
+  
+  T = gsl_root_fdfsolver_newton;
+  s = gsl_root_fdfsolver_alloc (T);
+  gsl_root_fdfsolver_set (s, &FDF, x);
+
+  // printf ("using %s method\n",
+  //         gsl_root_fdfsolver_name (s));
+
+  // printf ("%-5s %10s %10s %10s\n",
+  //         "iter", "root", "err", "err(est)");
+  do
+    {
+      iter++;
+      status = gsl_root_fdfsolver_iterate (s);
+      x0 = x;
+      x = gsl_root_fdfsolver_root (s);
+      status = gsl_root_test_delta (x, x0, 0, 1e-6);
+      
+      // if (status == GSL_SUCCESS)
+      //   printf ("Converged:\n");
+      
+      // printf ("%5d %10.7f %10.7f\n",
+      //         iter, x, x - x0);
+      
+    }
+  while (status == GSL_CONTINUE && iter < max_iter);
+
+  gsl_root_fdfsolver_free (s);
+  
+  return x;
+}
+
+/* Use GSL minimiser which uses GSL's false position algorithm to find root for a given function. */
 double FindFunctionRoot(gsl_function F,double x_lo, double x_hi)
+{
+  int status;
+  int iter = 0, max_iter = 200;
+  const gsl_root_fsolver_type *T;
+  gsl_root_fsolver *s;
+  double r = 0;
+ 
+  T = gsl_root_fsolver_falsepos;
+  s = gsl_root_fsolver_alloc (T);
+  gsl_set_error_handler_off();
+  status = gsl_root_fsolver_set (s, &F, x_lo, x_hi);
+  
+  do
+    {
+      iter++;
+      status = gsl_root_fsolver_iterate (s);
+      r = gsl_root_fsolver_root (s);
+      x_lo = gsl_root_fsolver_x_lower (s);
+      x_hi = gsl_root_fsolver_x_upper (s);
+      
+      if(x_lo>x_hi){
+      	swap(x_lo,x_hi);
+      }
+      double checkval=(*((F).function))(r,(F).params);
+      status = gsl_root_test_residual (checkval,1e-6);
+      //status = gsl_root_test_interval (x_lo, x_hi,0, 0.000001);
+      
+      if (status == GSL_SUCCESS){
+	// printf ("Converged:");
+	// printf ("%5d [%.7f, %.7f] %.7f %.7f\n",iter, x_lo, x_hi,r,x_hi - x_lo);
+      }
+    }
+  while (status == GSL_CONTINUE && iter < max_iter);
+
+  //printf ("status = %s\n", gsl_strerror (status));
+  gsl_root_fsolver_free (s);
+
+  return r;
+}
+
+/* Use GSL minimiser which uses GSL's false position algorithm to find root for a given function. */
+double FindFunctionRootZmax(gsl_function F,double x_lo, double x_hi)
 {
   int status;
   int iter = 0, max_iter = 100;
   const gsl_root_fsolver_type *T;
   gsl_root_fsolver *s;
   double r = 0;
-
-  T = gsl_root_fsolver_brent;
+ 
+  T = gsl_root_fsolver_falsepos;
   s = gsl_root_fsolver_alloc (T);
   gsl_set_error_handler_off();
   status = gsl_root_fsolver_set (s, &F, x_lo, x_hi);
-  // cout<<x_lo<<" "<<x_hi<<" "<<endl;
-  // printf ("error: %s\n", gsl_strerror (status));
-  
-  // printf ("using %s method\n", gsl_root_fsolver_name (s));
-  // printf ("%5s [%9s, %9s] %9s %9s\n","iter", "lower", "upper", "root", "err(est)");
 
   do
     {
@@ -101,8 +289,8 @@ double FindFunctionRoot(gsl_function F,double x_lo, double x_hi)
       r = gsl_root_fsolver_root (s);
       x_lo = gsl_root_fsolver_x_lower (s);
       x_hi = gsl_root_fsolver_x_upper (s);
-      status = gsl_root_test_interval (x_lo, x_hi,0, 0.000001);
-      
+      status = gsl_root_test_interval (x_lo, x_hi,1e-6, 1e-6);
+	
       if (status == GSL_SUCCESS){
 	// printf ("Converged:");
 	// printf ("%5d [%.7f, %.7f] %.7f %.7f\n",iter, x_lo, x_hi,r,x_hi - x_lo);
@@ -115,13 +303,14 @@ double FindFunctionRoot(gsl_function F,double x_lo, double x_hi)
   return r;
 }
 
+
 /* Define the function that will be minimized to get the value of the depth of the turning point for a given refracted ray. This function basically requires the value of the L parameter to find the depth of the turning point.  This comes from the part of the fDnfR function where sqrt( n(z) - L ). This imposes the constraint then n(z)=L at the turning point of the ray from which we can find zmax. */
 struct Minnz_params { double a,l; };
 double GetMinnz(double x,void *params){
   struct Minnz_params *p= (struct Minnz_params *) params;
   double A = p->a;
   double L = p->l;
-  return A+GetB(x)*exp(-GetC(x)*x)-L;  
+  return A+GetB(x)*exp(-GetC(x)*x)-L;
 }
 
 /* Get the value of the depth of the turning point for the refracted ray */
@@ -130,7 +319,7 @@ double GetZmax(double A, double L){
   struct Minnz_params params1= {A,L};
   F1.function = &GetMinnz;
   F1.params = &params1;
-  double zmax=FindFunctionRoot(F1,0.0,5000);
+  double zmax=FindFunctionRootZmax(F1,0.0,5000);
   return zmax;
 }
 
@@ -158,6 +347,7 @@ double fDnfR_L(double x,void *params){
   double Z = p->z;
   
   double result=(x/C)*(1.0/sqrt(A*A-x*x))*(C*Z-log(A*Getnz(Z)-x*x+sqrt(A*A-x*x)*sqrt(pow(Getnz(Z),2)-x*x)));
+  
   return result;
 }
 
@@ -175,7 +365,7 @@ double ftimeD(double x,void *params){
   return (1.0/(Speedc*C*sqrt(pow(Getnz(x),2)-L*L)))*(pow(Getnz(x),2)-L*L+(C*x-log(A*Getnz(x)-L*L+sqrt(A*A-L*L)*sqrt(pow(Getnz(x),2)-L*L)))*(A*A*sqrt(pow(Getnz(x),2)-L*L))/sqrt(A*A-L*L) +A*sqrt(pow(Getnz(x),2)-L*L)*log(Getnz(x)+sqrt(pow(Getnz(x),2)-L*L)) );
 }
 
-/* This function is minimised to find the launch angle (or the L parameter) for the direct ray */
+/* The set of functions starting with the name "fDa" are used in the minimisation procedure to find the launch angle (or the L parameter) for the direct ray */
 struct fDanfRa_params { double a, z0, x1, z1; };
 double fDa(double x,void *params){
   struct fDanfRa_params *p= (struct fDanfRa_params *) params;
@@ -186,11 +376,57 @@ double fDa(double x,void *params){
 
   struct fDnfR_L_params params1a = {A, GetB(z1), GetC(z1), z1};
   struct fDnfR_L_params params1b = {A, GetB(z0), GetC(z0), z0};
-  
-  return fDnfR_L(x,&params1a) - fDnfR_L(x,&params1b) - x1;
+  struct fDnfR_L_params params1c = {A, GetB(TransitionBoundary), GetC(TransitionBoundary), -TransitionBoundary};
+  struct fDnfR_L_params params1d = {A, GetB(-(TransitionBoundary+0.000001)), GetC(-(TransitionBoundary+0.000001)), -(TransitionBoundary+0.000001)};
+
+  double distancez0z1=0;
+  if(TransitionBoundary!=0){
+    if (fabs(z0)>TransitionBoundary && fabs(z1)>TransitionBoundary){
+      distancez0z1=fDnfR_L(x,&params1a) - fDnfR_L(x,&params1b);
+    }
+    if (fabs(z0)>TransitionBoundary && fabs(z1)<TransitionBoundary){
+      distancez0z1=fDnfR_L(x,&params1a) - fDnfR_L(x,&params1c) + fDnfR_L(x,&params1d) - fDnfR_L(x,&params1b);
+    }
+    if (fabs(z0)<TransitionBoundary && fabs(z1)<TransitionBoundary){
+      distancez0z1=fDnfR_L(x,&params1a) - fDnfR_L(x,&params1b);
+    }
+    if (fabs(z0)==TransitionBoundary && fabs(z1)<TransitionBoundary){
+      distancez0z1=fDnfR_L(x,&params1a) - fDnfR_L(x,&params1b);
+    }
+    if (fabs(z0)==TransitionBoundary && fabs(z1)==TransitionBoundary){
+      distancez0z1=fDnfR_L(x,&params1a) - fDnfR_L(x,&params1b);
+    }
+    if (fabs(z0)>TransitionBoundary && fabs(z1)==TransitionBoundary){
+      distancez0z1=fDnfR_L(x,&params1a) - fDnfR_L(x,&params1c) + fDnfR_L(x,&params1d) - fDnfR_L(x,&params1b);
+    }
+  }else{
+    distancez0z1=fDnfR_L(x,&params1a) - fDnfR_L(x,&params1b);
+  }
+  // if(isnan(distancez0z1)){
+  //   distancez0z1=1e9;
+  // }
+  double output=distancez0z1-x1;
+
+  return output;
 }
 
-/* This function is minimised to find the launch angle (or the L parameter) for the reflected ray */
+double fDa_df(double x,void *params){
+  gsl_function F;
+  F.function = &fDa;
+  F.params = params;
+ 
+  double result,abserr;
+  gsl_deriv_central (&F, x, 1e-8, &result, &abserr);
+
+  return result;
+}
+
+void fDa_fdf (double x, void *params,double *y, double *dy){ 
+  *y = fDa(x,params);
+  *dy = fDa_df(x,params);
+}
+
+/* The set of functions starting with the name "fRa" are used in the minimisation procedure to find the launch angle (or the L parameter) for the reflected ray */
 double fRa(double x,void *params){
   struct fDanfRa_params *p= (struct fDanfRa_params *) params;
   double A = p->a;
@@ -200,9 +436,67 @@ double fRa(double x,void *params){
 
   struct fDnfR_L_params params1a = {A, GetB(z1), -GetC(z1), -z1};
   struct fDnfR_L_params params1b = {A, GetB(z0), -GetC(z0), -z0};
-  struct fDnfR_L_params params1c = {A, GetB(0.0000001), -GetC(0.0000001), 0.0000001};
+  struct fDnfR_L_params params1c = {A, GetB(1e-7), -GetC(1e-7), 1e-7};
+  struct fDnfR_L_params params1d = {A, GetB(TransitionBoundary), -GetC(TransitionBoundary), TransitionBoundary};
+  struct fDnfR_L_params params1f = {A, GetB(TransitionBoundary+0.000001), -GetC(TransitionBoundary+0.000001), TransitionBoundary+0.000001};
 
-  return fDnfR_L(x,&params1a) - fDnfR_L(x,&params1b) - 2*( fDnfR_L(x,&params1c) - fDnfR_L(x,&params1b) ) - x1;
+  double distancez0z1=0;
+  double distancez0surface=0;
+  if(TransitionBoundary!=0){
+    if (fabs(z0)>TransitionBoundary && fabs(z1)>TransitionBoundary){
+      distancez0z1=fDnfR_L(x,&params1a) - fDnfR_L(x,&params1b);
+      distancez0surface=fDnfR_L(x,&params1c) - fDnfR_L(x,&params1d) + fDnfR_L(x,&params1f) - fDnfR_L(x,&params1b);
+    }
+    if (fabs(z0)>TransitionBoundary && fabs(z1)<TransitionBoundary){
+      distancez0z1=fDnfR_L(x,&params1a) - fDnfR_L(x,&params1d) + fDnfR_L(x,&params1f) - fDnfR_L(x,&params1b);
+      distancez0surface=fDnfR_L(x,&params1c) - fDnfR_L(x,&params1d) + fDnfR_L(x,&params1f) - fDnfR_L(x,&params1b);
+    }
+    if (fabs(z0)<TransitionBoundary && fabs(z1)<TransitionBoundary){
+      distancez0z1=fDnfR_L(x,&params1a) - fDnfR_L(x,&params1b);
+      distancez0surface=fDnfR_L(x,&params1c) - fDnfR_L(x,&params1b); 
+    }
+    if (fabs(z0)==TransitionBoundary && fabs(z1)<TransitionBoundary){
+      distancez0z1=fDnfR_L(x,&params1a) - fDnfR_L(x,&params1b);
+      distancez0surface=fDnfR_L(x,&params1c) - fDnfR_L(x,&params1b); 
+    }
+    if (fabs(z0)==TransitionBoundary && fabs(z1)==TransitionBoundary){
+      distancez0z1=fDnfR_L(x,&params1a) - fDnfR_L(x,&params1b);
+      distancez0surface=fDnfR_L(x,&params1c) - fDnfR_L(x,&params1b); 
+    }
+    if (fabs(z0)>TransitionBoundary && fabs(z1)==TransitionBoundary){
+      distancez0z1=fDnfR_L(x,&params1a) - fDnfR_L(x,&params1d) + fDnfR_L(x,&params1f) - fDnfR_L(x,&params1b);
+      distancez0surface=fDnfR_L(x,&params1c) - fDnfR_L(x,&params1d) + fDnfR_L(x,&params1f) - fDnfR_L(x,&params1b); 
+    }
+  }else{
+    distancez0z1=fDnfR_L(x,&params1a) - fDnfR_L(x,&params1b);
+    distancez0surface=fDnfR_L(x,&params1c) - fDnfR_L(x,&params1b);
+  }
+  // if(isnan(distancez0z1)){
+  //   distancez0z1=1e9;
+  // }
+  // if(isnan(distancez0surface)){
+  //   distancez0surface=1e9;
+  // }
+  double output= distancez0z1 - 2*(distancez0surface) - x1;
+  //cout<<distancez0z1<<" "<<2*(distancez0surface)<<" "<<x1<<" "<<output<<endl;
+  
+  return output;
+}
+
+double fRa_df(double x,void *params){
+  gsl_function F;
+  F.function = &fRa;
+  F.params = params;
+ 
+  double result,abserr;
+  gsl_deriv_central (&F, x, 1e-8, &result, &abserr);
+
+  return result;
+}
+
+void fRa_fdf (double x, void *params,double *y, double *dy){ 
+  *y = fRa(x,params);
+  *dy = fRa_df(x,params);
 }
 
 /* This function is minimised to find the launch angle (or the L parameter) for the refracted ray */
@@ -212,14 +506,77 @@ double fRaa(double x,void *params){
   double z0 = p->z0;
   double x1 = p->x1;
   double z1 = p->z1;
-
-  double zmax= GetZmax(A,x)+0.0000001;
+  
+  double zmax= GetZmax(A,x)+1e-7;
 
   struct fDnfR_L_params params1a = {A, GetB(z1), -GetC(z1), -z1};
   struct fDnfR_L_params params1b = {A, GetB(z0), -GetC(z0), -z0};
   struct fDnfR_L_params params1c = {A, GetB(zmax), -GetC(zmax), zmax};
+  struct fDnfR_L_params params1d = {A, GetB(TransitionBoundary), -GetC(TransitionBoundary), TransitionBoundary};
+  struct fDnfR_L_params params1f = {A, GetB(TransitionBoundary+1e-7), -GetC(TransitionBoundary+1e-7), TransitionBoundary+1e-7};
 
-  return fDnfR_L(x,&params1a) - fDnfR_L(x,&params1b) - 2*( fDnfR_L(x,&params1c) - fDnfR_L(x,&params1b) ) - x1;
+  double distancez0z1=0;
+  double distancez0surface=0;
+  if(TransitionBoundary!=0){
+    if (fabs(z0)>TransitionBoundary && fabs(z1)>TransitionBoundary){
+      if(zmax<=TransitionBoundary){
+	distancez0z1=fDnfR_L(x,&params1a) - fDnfR_L(x,&params1b);
+	distancez0surface=fDnfR_L(x,&params1c) - fDnfR_L(x,&params1d) + fDnfR_L(x,&params1f) - fDnfR_L(x,&params1b);
+      }else{
+	distancez0z1=fDnfR_L(x,&params1a) - fDnfR_L(x,&params1b);
+	distancez0surface=fDnfR_L(x,&params1c) - fDnfR_L(x,&params1b);
+      }
+    }
+    if (fabs(z0)>TransitionBoundary && fabs(z1)<TransitionBoundary){
+      distancez0z1=fDnfR_L(x,&params1a) - fDnfR_L(x,&params1d) + fDnfR_L(x,&params1f) - fDnfR_L(x,&params1b);
+      distancez0surface=fDnfR_L(x,&params1c) - fDnfR_L(x,&params1d) + fDnfR_L(x,&params1f) - fDnfR_L(x,&params1b);
+    }
+    if (fabs(z0)<TransitionBoundary && fabs(z1)<TransitionBoundary){
+      distancez0z1=fDnfR_L(x,&params1a) - fDnfR_L(x,&params1b);
+      distancez0surface=fDnfR_L(x,&params1c) - fDnfR_L(x,&params1b); 
+    }
+    if (fabs(z0)==TransitionBoundary && fabs(z1)<TransitionBoundary){
+      distancez0z1=fDnfR_L(x,&params1a) - fDnfR_L(x,&params1b);
+      distancez0surface=fDnfR_L(x,&params1c) - fDnfR_L(x,&params1b); 
+    }
+    if (fabs(z0)==TransitionBoundary && fabs(z1)==TransitionBoundary){
+      distancez0z1=fDnfR_L(x,&params1a) - fDnfR_L(x,&params1b);
+      distancez0surface=fDnfR_L(x,&params1c) - fDnfR_L(x,&params1b); 
+    }
+    if (fabs(z0)>TransitionBoundary && fabs(z1)==TransitionBoundary){
+      distancez0z1=fDnfR_L(x,&params1a) - fDnfR_L(x,&params1d) + fDnfR_L(x,&params1f) - fDnfR_L(x,&params1b);
+      distancez0surface=fDnfR_L(x,&params1c) - fDnfR_L(x,&params1d) + fDnfR_L(x,&params1f) - fDnfR_L(x,&params1b); 
+    }
+  }else{
+    distancez0z1=fDnfR_L(x,&params1a) - fDnfR_L(x,&params1b);
+    distancez0surface=fDnfR_L(x,&params1c) - fDnfR_L(x,&params1b);
+  }
+
+  if(isnan(distancez0z1)){
+    distancez0z1=1e9;
+  }
+  if(isnan(distancez0surface)){
+    distancez0surface=1e9;
+  }
+  double output= distancez0z1 - 2*(distancez0surface) - x1;
+  
+  return output;
+}
+
+double fRaa_df(double x,void *params){
+  gsl_function F;
+  F.function = &fRaa;
+  F.params = params;
+ 
+  double result,abserr;
+  gsl_deriv_central (&F, x, 1e-8, &result, &abserr);
+
+  return result;
+}
+
+void fRaa_fdf (double x, void *params,double *y, double *dy){ 
+  *y = fRaa(x,params);
+  *dy = fRaa_df(x,params);
 }
 
 /* This functions works for the Direct ray and gives you back the launch angle, receive angle and propagation time of the ray together with values of the L parameter and checkzero variable. checkzero variable checks how close the minimiser came to 0. 0 is perfect and less than 0.5 is pretty good. more than that should not be acceptable. */
@@ -242,21 +599,52 @@ double* GetDirectRayPar(double z0, double x1, double z1){
   F1.function = &fDa;
   F1.params = &params1;
 
+  // gsl_function_fdf F1;
+  // struct fDanfRa_params params1= {A_ice, z0, x1, z1};
+  // F1.f = &fDa;
+  // F1.df = &fDa_df;
+  // F1.fdf = &fDa_fdf;
+  // F1.params = &params1;
+  
   /* In my raytracing solution given in the function fDnfR the launch angle (or the L parameter) has limit placed on it by this part in the solution sqrt( n(z)^2 - L^2) . This sqrt cannot be negative for both z0 and z1 and this sets the upper limit in our minimisation to get the launch angle (or the L parameter). Here I am basically setting the upper limit as GSL requires that my function is well behaved on the upper and lower bounds I give it for minimisation. */ 
   double UpLimnz[]={Getnz(z1),Getnz(z0)};
-  double *UpperLimitL=min_element(UpLimnz,UpLimnz+2);
-  
+  double* UpperLimitL=min_element(UpLimnz,UpLimnz+2);
+
   /* Do the minimisation and get the value of the L parameter and the launch angle and then verify to see that the value of L that we got was actually a root of fDa function. */
-  double lvalueD=FindFunctionRoot(F1,0.0000001,UpperLimitL[0]);
+  double lvalueD=FindFunctionRoot(F1,1e-7,UpperLimitL[0]);
   double LangD=asin(lvalueD/Getnz(z0))*(180.0/pi);
   double checkzeroD=fDa(lvalueD,&params1);
 
   /* Get the propagation time for the direct ray using the ftimeD function after we have gotten the value of the L parameter. */
   struct ftimeD_params params2a = {A_ice, GetB(z0), -GetC(z0), spedc,lvalueD};
   struct ftimeD_params params2b = {A_ice, GetB(z1), -GetC(z1), spedc,lvalueD};
+  struct ftimeD_params params2c = {A_ice, GetB(TransitionBoundary), -GetC(TransitionBoundary), spedc, lvalueD};
+  struct ftimeD_params params2d = {A_ice, GetB(TransitionBoundary+1e-7), -GetC(TransitionBoundary+1e-7), spedc, lvalueD};
 
   /* we do the subtraction because we are measuring the time taken between the Tx and Rx positions */
-  double timeD=+ftimeD(-z0,&params2a) - ftimeD(-z1,&params2b);
+  double timeD=0;
+  if(TransitionBoundary!=0){
+    if (fabs(z0)>TransitionBoundary && fabs(z1)>TransitionBoundary){
+      timeD=ftimeD(-z0,&params2a) - ftimeD(-z1,&params2b);
+    }
+    if (fabs(z0)>TransitionBoundary && fabs(z1)<TransitionBoundary){
+      timeD=ftimeD(-z0,&params2a) - ftimeD(TransitionBoundary+1e-7,&params2d) + ftimeD(TransitionBoundary,&params2c) - ftimeD(-z1,&params2b);
+    }
+    if (fabs(z0)<TransitionBoundary && fabs(z1)<TransitionBoundary){
+      timeD=ftimeD(-z0,&params2a) - ftimeD(-z1,&params2b);
+    }
+    if (fabs(z0)==TransitionBoundary && fabs(z1)<TransitionBoundary){
+      timeD=ftimeD(-z0,&params2a) - ftimeD(-z1,&params2b);
+    }
+    if (fabs(z0)==TransitionBoundary && fabs(z1)==TransitionBoundary){
+      timeD=ftimeD(-z0,&params2a) - ftimeD(-z1,&params2b);
+    }
+    if (fabs(z0)>TransitionBoundary && fabs(z1)==TransitionBoundary){
+      timeD=ftimeD(-z0,&params2a) - ftimeD(TransitionBoundary+1e-7,&params2d) + ftimeD(TransitionBoundary,&params2c) - ftimeD(-z1,&params2b);
+    }
+  }else{
+    timeD=ftimeD(-z0,&params2a) - ftimeD(-z1,&params2b);
+  }
 
   /* Setup the function that will be used to calculate the angle of reception for all the rays */
   gsl_function F5;
@@ -322,24 +710,60 @@ double *GetReflectedRayPar(double z0, double x1 ,double z1){
   F3.function = &fRa;
   F3.params = &params3;
 
-  /* In my raytracing solution given in the function fDnfR the launch angle (or the L parameter) has limit placed on it by this part in the solution sqrt( n(z)^2 - L^2) . This sqrt cannot be negative for both z0, z1 and also 0.0000001 m and this sets the upper limit in our minimisation to get the launch angle (or the L parameter). Here I am basically setting the upper limit as GSL requires that my function is well behaved on the upper and lower bounds I give it for minimisation. */
-  double UpLimnz[]={Getnz(z1),Getnz(z0),Getnz(0.0000001)};
+  // gsl_function_fdf F3;
+  // struct fDanfRa_params params3= {A_ice, z0, x1, z1};
+  // F3.f = &fRa;
+  // F3.df = &fRa_df;
+  // F3.fdf = &fRa_fdf;
+  // F3.params = &params3;
+  
+  /* In my raytracing solution given in the function fDnfR the launch angle (or the L parameter) has limit placed on it by this part in the solution sqrt( n(z)^2 - L^2) . This sqrt cannot be negative for both z0, z1 and also 1e-7 m and this sets the upper limit in our minimisation to get the launch angle (or the L parameter). Here I am basically setting the upper limit as GSL requires that my function is well behaved on the upper and lower bounds I give it for minimisation. */
+  double UpLimnz[]={Getnz(z1),Getnz(z0),Getnz(1e-7)};
   double *UpperLimitL=min_element(UpLimnz,UpLimnz+3);
   
   /* Do the minimisation and get the value of the L parameter and the launch angle and then verify to see that the value of L that we got was actually a root of fRa function. */
-  double lvalueR=FindFunctionRoot(F3,0.0000001,UpperLimitL[0]);
+  double lvalueR=FindFunctionRoot(F3,1e-7,UpperLimitL[0]);
   double LangR=asin(lvalueR/Getnz(z0))*(180.0/pi);
   double checkzeroR=fRa(lvalueR,&params3); 
 
   /* Get the propagation time for the reflected ray using the ftimeD function after we have gotten the value of the L parameter. */
   struct ftimeD_params params3a = {A_ice, GetB(z0), GetC(z0), spedc,lvalueR};
   struct ftimeD_params params3b = {A_ice, GetB(z1), GetC(z1), spedc,lvalueR};
-  struct ftimeD_params params3c = {A_ice, GetB(0.0000001), GetC(0.0000001), spedc,lvalueR};
-
-  /* we do the subtraction because we are measuring the time taken between the Tx and Rx positions. In the reflected case we basically have two direct rays 1) from Tx to surface 2) from surface to Rx. */
-  /* Also get the time for the two individual direct rays separately */
-  double timeR1=ftimeD(-0.0000001,&params3c) - ftimeD(z0,&params3a);
-  double timeR2=ftimeD(-0.0000001,&params3c) - ftimeD(z1,&params3b);
+  struct ftimeD_params params3c = {A_ice, GetB(1e-7), GetC(1e-7), spedc,lvalueR};
+  struct ftimeD_params params3d = {A_ice, GetB(TransitionBoundary), GetC(TransitionBoundary), spedc, lvalueR};
+  struct ftimeD_params params3f = {A_ice, GetB(TransitionBoundary+1e-7), GetC(TransitionBoundary+1e-7), spedc, lvalueR};
+  /* We do the subtraction because we are measuring the time taken between the Tx and Rx positions. In the reflected case we basically have two direct rays 1) from Tx to surface 2) from surface to Rx. Also get the time for the two individual direct rays separately */
+  double timeR1=0;
+  double timeR2=0;
+  if(TransitionBoundary!=0){
+    if (fabs(z0)>TransitionBoundary && fabs(z1)>TransitionBoundary){
+      timeR1=ftimeD(-1e-7,&params3c) - ftimeD(-TransitionBoundary,&params3d) + ftimeD(-(TransitionBoundary+1e-7),&params3f) - ftimeD(z0,&params3a);
+      timeR2=ftimeD(-1e-7,&params3c) - ftimeD(-TransitionBoundary,&params3d) + ftimeD(-(TransitionBoundary+1e-7),&params3f) - ftimeD(z1,&params3b);
+    }
+    if (fabs(z0)>TransitionBoundary && fabs(z1)<TransitionBoundary){
+      timeR1=ftimeD(-1e-7,&params3c) - ftimeD(-TransitionBoundary,&params3d) + ftimeD(-(TransitionBoundary+1e-7),&params3f) - ftimeD(z0,&params3a);
+      timeR2=ftimeD(-1e-7,&params3c) - ftimeD(z1,&params3b);
+    }
+    if (fabs(z0)<TransitionBoundary && fabs(z1)<TransitionBoundary){
+      timeR1=ftimeD(-1e-7,&params3c) - ftimeD(z0,&params3a);
+      timeR2=ftimeD(-1e-7,&params3c) - ftimeD(z1,&params3b); 
+    }
+    if (fabs(z0)==TransitionBoundary && fabs(z1)<TransitionBoundary){
+      timeR1=ftimeD(-1e-7,&params3c) - ftimeD(z0,&params3a);
+      timeR2=ftimeD(-1e-7,&params3c) - ftimeD(z1,&params3b);
+    }
+    if (fabs(z0)==TransitionBoundary && fabs(z1)==TransitionBoundary){
+      timeR1=ftimeD(-1e-7,&params3c) - ftimeD(z0,&params3a);
+      timeR2=ftimeD(-1e-7,&params3c) - ftimeD(z1,&params3b); 
+    }
+    if (fabs(z0)>TransitionBoundary && fabs(z1)==TransitionBoundary){
+      timeR1=ftimeD(-1e-7,&params3c) - ftimeD(-TransitionBoundary,&params3d) + ftimeD(-(TransitionBoundary+1e-7),&params3f) - ftimeD(z0,&params3a);
+      timeR2=ftimeD(-1e-7,&params3c) - ftimeD(z1,&params3b); 
+    } 
+  }else{
+    timeR1=ftimeD(-1e-7,&params3c) - ftimeD(z0,&params3a);
+    timeR2=ftimeD(-1e-7,&params3c) - ftimeD(z1,&params3b);
+  }
   double timeR=timeR1 + timeR2;
   
   /* flip the times back if the original positions were flipped */
@@ -372,11 +796,15 @@ double *GetReflectedRayPar(double z0, double x1 ,double z1){
     RangR=90;
   }
 
+  if(std::isnan(checkzeroR)){
+    checkzeroR=-1000;
+  }
+  
   /* Calculate the angle of incidence of the reflected ray at the surface ice. This will be used to calculate the Fresnel Coefficients. The angle is calculated by calculating the derivative of the ray path fucnction at the surface*/
-  struct fDnfR_params paramsIAngB = {A_ice, GetB(0.0000001), GetC(0.0000001), lvalueR};
+  struct fDnfR_params paramsIAngB = {A_ice, GetB(1e-7), GetC(1e-7), lvalueR};
   F5.function = &fDnfR; 
   F5.params = &paramsIAngB;
-  gsl_deriv_central (&F5, -0.0000001, 1e-8, &result, &abserr);
+  gsl_deriv_central (&F5, -1e-7, 1e-8, &result, &abserr);
   double IncidenceAngleInIce=atan(result)*(180.0/pi);
   
   dsw=0;
@@ -407,8 +835,8 @@ double *GetReflectedRayPar(double z0, double x1 ,double z1){
 
 /* This functions works for the Refracted ray and gives you back the launch angle, receive angle and propagation times (of the whole ray and the two direct rays that make it up) together with values of the L parameter and checkzero variable. checkzero variable checks how close the minimiser came to 0. 0 is perfect and less than 0.5 is pretty good. more than that should not be acceptable. It requires the launch angle of the reflected ray as an input. */
 double *GetRefractedRayPar(double z0, double x1 ,double z1, double LangR, double RangR){
-
-  double *output=new double[8];
+  
+  double *output=new double[8*2];
 
   /* My raytracer can only work the Tx is below the Rx. If the Tx is higher than the Rx than we need to flip the depths to allow for raytracing and then we will flip them back later at the end */
   bool Flip=false;
@@ -428,19 +856,19 @@ double *GetRefractedRayPar(double z0, double x1 ,double z1, double LangR, double
   
   /* Set up all the variables that will be used to get the parameters for the refracted ray */
   double lvalueR=sin(LangR*(pi/180))*Getnz(z0);
-  double lvalueRa=0;
-  double LangRa=0;
-  double checkzeroRa=-1000;
+  double lvalueRa[2]={0,0};
+  double LangRa[2]={0,0};
+  double checkzeroRa[2]={-1000,-1000};
 
-  double timeRa=0;
-  double timeRa1=0;
-  double timeRa2=0;
-  double raytime=0;
-  double RangRa=0;
-  double zmax=10;
-
-  /* In my raytracing solution given in the function fDnfR the launch angle (or the L parameter) has limit placed on it by this part in the solution sqrt( n(z)^2 - L^2) . This sqrt cannot be negative for both z0, z1 and also 0.0000001 m and this sets the upper limit in our minimisation to get the launch angle (or the L parameter). Here I am basically setting the upper limit as GSL requires that my function is well behaved on the upper and lower bounds I give it for minimisation. */
-  double UpLimnz[]={Getnz(z1),Getnz(z0)};
+  double timeRa[2]={0,0};
+  double timeRa1[2]={0,0};
+  double timeRa2[2]={0,0};
+  double raytime[2]={0,0};
+  double RangRa[2]={0,0};
+  double zmax[2]={10,10};
+  
+  /* In my raytracing solution given in the function fDnfR the launch angle (or the L parameter) has limit placed on it by this part in the solution sqrt( n(z)^2 - L^2) . This sqrt cannot be negative for both z0, z1 and also 1e-7 m and this sets the upper limit in our minimisation to get the launch angle (or the L parameter). Here I am basically setting the upper limit as GSL requires that my function is well behaved on the upper and lower bounds I give it for minimisation. */
+  double UpLimnz[]={Getnz(z0),Getnz(z1)};
   double *UpperLimitL=min_element(UpLimnz,UpLimnz+2);
   
   /* First we setup the fRa function that will be minimised to get the launch angle (or the L parameter) for the refracted ray. */
@@ -449,76 +877,149 @@ double *GetRefractedRayPar(double z0, double x1 ,double z1, double LangR, double
   F4.function = &fRaa;
   F4.params = &params4;
 
+  gsl_function_fdf F4b;
+  F4b.f = &fRaa;
+  F4b.df = &fRaa_df;
+  F4b.fdf = &fRaa_fdf;
+  F4b.params = &params4;
+  
   /* Do the minimisation and get the value of the L parameter and the launch angle and then verify to see that the value of L that we got was actually a root of fRaa function. The thing to note here is the lower limit of the minimisation function is set to the L value corresponding to the reflected ray launch angle. Since we know the refracted ray always has bigger launch angle the reflected ray this reduces our range and makes the function more efficient at finding the refracted ray launch angle. */
-  lvalueRa=FindFunctionRoot(F4,Getnz(z0)*sin((LangR*(pi/180.0))),UpperLimitL[0]);
-  LangRa=asin(lvalueRa/Getnz(z0))*(180.0/pi);
-  checkzeroRa=fRaa(lvalueRa,&params4);
-
-  /* If the above strategy did not work then we start decreasing the reflected ray launch angle in steps of 5 degree and increase our range for minimisation to find the launch angle (or the L parameter). Sometimes the refracted and reflected rays come out to be the same in that case also I forced my solution to try harder by changing the minimisation range. */
-  double iangstep=5;
-  while( (isnan(checkzeroRa)==true || fabs(checkzeroRa)>0.5 || fabs(lvalueRa-lvalueR)<pow(10,-5) || fabs(LangRa-LangR)<pow(10,-1)) && LangR>iangstep && iangstep<90){
-    //cout<<"2nd try to get Refracted ray "<<isnan(checkzeroRa)<<" "<<fabs(checkzeroRa)<<endl;
-    lvalueRa=FindFunctionRoot(F4,Getnz(z0)*sin(((LangR-iangstep)*(pi/180.0))),UpperLimitL[0]);
-    LangRa=asin(lvalueRa/Getnz(z0))*(180.0/pi);
-    checkzeroRa=fRaa(lvalueRa,&params4);
-    iangstep=iangstep+5;
-  }///end the second attempt    
-
-  /* If we still did not find a refracted ray then set the check zero parameter to 1000 to make sure my code does not output this as a possible solution */
-  if(isnan(checkzeroRa)==true){
-    checkzeroRa=-1000;
+  double LowerLimit=Getnz(z0)*sin((LangR*(pi/180.0)));
+  if(isnan(LowerLimit)){
+    LowerLimit=Getnz(z0)*sin((30.0*(pi/180.0)));
   }
+  lvalueRa[0]=FindFunctionRoot(F4,LowerLimit,UpperLimitL[0]);
+  LangRa[0]=asin(lvalueRa[0]/Getnz(z0))*(180.0/pi);
+  checkzeroRa[0]=(fRaa(lvalueRa[0],&params4));
+  zmax[0]=GetZmax(A_ice,lvalueRa[0])+1e-7;
 
-  /* If we did find a possible refracted ray then now we need to find the depth at which the ray turns back down without hitting the surface. */
-  zmax=GetZmax(A_ice,lvalueRa)+0.0000001;
-
-  /* If the turning point depth also came out to be zero then now we are sure that there is no refracted ray */
-  if(zmax==0.0000001){
-    checkzeroRa=-1000;
-  }
-
-  /* Set parameters for ftimeD function to get the propagation time for the refracted ray */
-  struct ftimeD_params params4a = {A_ice, GetB(z0), GetC(z0), spedc,lvalueRa};
-  struct ftimeD_params params4b = {A_ice, GetB(z1), GetC(z1), spedc,lvalueRa};
-  struct ftimeD_params params4c = {A_ice, GetB(zmax), GetC(zmax), spedc,lvalueRa};
-
-  /* This if condition checks if the function has not gone crazy and given us a turning point of the ray which is lower than both Tx and Rx and is shallower in depth than both */
-  if((z0<-zmax || zmax<-z1)){
-    /* We do the subtraction because we are measuring the time taken between the Tx and Rx positions. In the refracted case we basically have two direct rays 1) from Tx to turning point 2) from turning point to Rx. Also get the time for the two individual direct rays separately */
-    timeRa1=ftimeD(-zmax,&params4c) - ftimeD(z0,&params4a);
-    timeRa2=ftimeD(-zmax,&params4c) - ftimeD(z1,&params4b);
-    raytime= timeRa1 + timeRa2;
-    if(Flip==true){
-      double dumRa=timeRa2;
-      timeRa2=timeRa1;
-      timeRa1=dumRa;
+  bool checkzmax=false;
+  if(zmax[0]<0){
+    double LowerLimit=lvalueRa[0]+0.2;
+    if(LowerLimit>UpperLimitL[0]){
+      LowerLimit=lvalueRa[0]+0.05;
     }
-    timeRa1=timeRa1;
-    timeRa2=timeRa2;
+    lvalueRa[0]=FindFunctionRootFDF(F4b,LowerLimit,UpperLimitL[0]);
+    LangRa[0]=asin(lvalueRa[0]/Getnz(z0))*(180.0/pi);
+    checkzeroRa[0]=fRaa(lvalueRa[0],&params4);
+    zmax[0]=GetZmax(A_ice,lvalueRa[0])+1e-7;
+    checkzmax=true;
   }
-  timeRa=raytime;
+  
+  if(checkzeroRa[0]>0.5){
+    lvalueRa[0]=FindFunctionRootFDF(F4b,Getnz(z0)*sin((LangR*(pi/180.0))),UpperLimitL[0]);
+    LangRa[0]=asin(lvalueRa[0]/Getnz(z0))*(180.0/pi);
+    checkzeroRa[0]=fRaa(lvalueRa[0],&params4);
+    zmax[0]=GetZmax(A_ice,lvalueRa[0])+1e-7;
+  }
 
-  /* Setup the function that will be used to calculate the angle of reception for all the rays */
-  gsl_function F5;
-  struct fDnfR_params params5c = {A_ice, GetB(z1), GetC(z1), lvalueRa};
-  double result, abserr;
-  F5.function = &fDnfR;
+  if(checkzmax==false){
+    lvalueRa[1]=FindFunctionRoot(F4,lvalueRa[0]-0.25,lvalueRa[0]-0.05);
+  }else{
+    lvalueRa[1]=FindFunctionRoot(F4,lvalueRa[0]+0.02,UpperLimitL[0]);
+  }
+  LangRa[1]=asin(lvalueRa[1]/Getnz(z0))*(180.0/pi);
+  checkzeroRa[1]=fRaa(lvalueRa[1],&params4);
+  zmax[1]=GetZmax(A_ice,lvalueRa[1])+1e-7;
+
+  if(checkzmax==true && (fabs(checkzeroRa[1])>0.5 || isnan(checkzeroRa[1])==true)){
+    lvalueRa[1]=FindFunctionRoot(F4,lvalueRa[0]-0.25,lvalueRa[0]-0.05);
+    LangRa[1]=asin(lvalueRa[1]/Getnz(z0))*(180.0/pi);
+    checkzeroRa[1]=fRaa(lvalueRa[1],&params4);
+    zmax[1]=GetZmax(A_ice,lvalueRa[1])+1e-7;
+  }
+ 
+  for(int i=0;i<2;i++){////loop over the two refracted solutions
+  
+    /* If we still did not find a refracted ray then set the check zero parameter to 1000 to make sure my code does not output this as a possible solution */
+    if(isnan(checkzeroRa[i])==true){
+      checkzeroRa[i]=-1000;
+    }
+
+    /* If the turning point depth also came out to be zero then now we are sure that there is no refracted ray */
+    if(zmax[i]==1e-7 || zmax[i]<=0){
+      checkzeroRa[i]=-1000;
+    }
+
+    /* Set parameters for ftimeD function to get the propagation time for the refracted ray */
+    struct ftimeD_params params4a = {A_ice, GetB(z0), GetC(z0), spedc,lvalueRa[i]};
+    struct ftimeD_params params4b = {A_ice, GetB(z1), GetC(z1), spedc,lvalueRa[i]};
+    struct ftimeD_params params4c = {A_ice, GetB(zmax[i]), GetC(zmax[i]), spedc,lvalueRa[i]};
+    struct ftimeD_params params4d = {A_ice, GetB(TransitionBoundary), GetC(TransitionBoundary), spedc, lvalueRa[i]};
+    struct ftimeD_params params4f = {A_ice, GetB(TransitionBoundary+1e-7), GetC(TransitionBoundary+1e-7), spedc, lvalueRa[i]};
     
-  /* Calculate the recieve angle for refacted ray by calculating the derivative of the function at the Rx position */
-  F5.params = &params5c;
-  gsl_deriv_central (&F5, z1, 1e-8, &result, &abserr);
-  RangRa=180-atan(result)*(180.0/pi);
+    /* This if condition checks if the function has not gone crazy and given us a turning point of the ray which is lower than both Tx and Rx and is shallower in depth than both */
+    if((z0<-zmax[i] || zmax[i]<-z1)){
+      /* We do the subtraction because we are measuring the time taken between the Tx and Rx positions. In the refracted case we basically have two direct rays 1) from Tx to turning point 2) from turning point to Rx. Also get the time for the two individual direct rays separately */
+     
+      if(TransitionBoundary!=0){
+	if (fabs(z0)>TransitionBoundary && fabs(z1)>TransitionBoundary){
+	  if(zmax[i]<=TransitionBoundary){
+	    timeRa1[i]=ftimeD(-zmax[i],&params4c) - ftimeD(-TransitionBoundary,&params4d) + ftimeD(-(TransitionBoundary+1e-7),&params4f) - ftimeD(z0,&params4a);
+	    timeRa2[i]=ftimeD(-zmax[i],&params4c) - ftimeD(-TransitionBoundary,&params4d) + ftimeD(-(TransitionBoundary+1e-7),&params4f) - ftimeD(z1,&params4b);	
+	  }else{
+	    timeRa1[i]=ftimeD(-zmax[i],&params4c) - ftimeD(z0,&params4a);
+	    timeRa2[i]=ftimeD(-zmax[i],&params4c) - ftimeD(z1,&params4b);
+	  }  
+	}
+	if (fabs(z0)>TransitionBoundary && fabs(z1)<TransitionBoundary){
+	  timeRa1[i]=ftimeD(-zmax[i],&params4c) - ftimeD(-TransitionBoundary,&params4d) + ftimeD(-(TransitionBoundary+1e-7),&params4f) - ftimeD(z0,&params4a);
+	  timeRa2[i]=ftimeD(-zmax[i],&params4c) - ftimeD(z1,&params4b);
+	}
+	if (fabs(z0)<TransitionBoundary && fabs(z1)<TransitionBoundary){
+	  timeRa1[i]=ftimeD(-zmax[i],&params4c) - ftimeD(z0,&params4a);
+	  timeRa2[i]=ftimeD(-zmax[i],&params4c) - ftimeD(z1,&params4b);
+	} 
+	if (fabs(z0)==TransitionBoundary && fabs(z1)<TransitionBoundary){
+	  timeRa1[i]=ftimeD(-zmax[i],&params4c) - ftimeD(z0,&params4a);
+	  timeRa2[i]=ftimeD(-zmax[i],&params4c) - ftimeD(z1,&params4b); 
+	}
+	if (fabs(z0)==TransitionBoundary && fabs(z1)==TransitionBoundary){
+	  timeRa1[i]=ftimeD(-zmax[i],&params4c) - ftimeD(z0,&params4a);
+	  timeRa2[i]=ftimeD(-zmax[i],&params4c) - ftimeD(z1,&params4b); 
+	}
+	if (fabs(z0)>TransitionBoundary && fabs(z1)==TransitionBoundary){
+	  timeRa1[i]=ftimeD(-zmax[i],&params4c) - ftimeD(-TransitionBoundary,&params4d) + ftimeD(-(TransitionBoundary+1e-7),&params4f) - ftimeD(z0,&params4a);
+	  timeRa2[i]=ftimeD(-zmax[i],&params4c) - ftimeD(z1,&params4b);
+	}
+      }else{
+	timeRa1[i]=ftimeD(-zmax[i],&params4c) - ftimeD(z0,&params4a);
+	timeRa2[i]=ftimeD(-zmax[i],&params4c) - ftimeD(z1,&params4b);
+      }
+      
+      raytime[i]= timeRa1[i] + timeRa2[i];
+      
+      if(Flip==true){
+	double dumRa=timeRa2[i];
+	timeRa2[i]=timeRa1[i];
+	timeRa1[i]=dumRa;
+      }
+    }
+    timeRa[i]=raytime[i];
 
-  /* When the Tx and Rx are at the same depth my function struggles to find a ray between them when they are very close to each other. In that case the ray is pretty much like a straight line. */
-  if(z1==z0 && isnan(RangRa)==true){
-    RangRa=180-LangRa;
-  }
+    /* Setup the function that will be used to calculate the angle of reception for all the rays */
+    gsl_function F5;
+    struct fDnfR_params params5c = {A_ice, GetB(z1), GetC(z1), lvalueRa[i]};
+    double result, abserr;
+    F5.function = &fDnfR;
+    
+    /* Calculate the recieve angle for refacted ray by calculating the derivative of the function at the Rx position */
+    F5.params = &params5c;
+    gsl_deriv_central (&F5, z1, 1e-8, &result, &abserr);
+    RangRa[i]=180-atan(result)*(180.0/pi);
 
-  /* This sometimes happens that when the Rx is very close to the peak point (or the turning point) of the ray then its hard to calculate the derivative around that area since the solution blows up around that area. therefore this is a good approximation. */
-  if(z1!=z0 && isnan(RangRa)==true){
-    RangRa=90;
-  }
+    /* When the Tx and Rx are at the same depth my function struggles to find a ray between them when they are very close to each other. In that case the ray is pretty much like a straight line. */
+    if(z1==z0 && isnan(RangRa[i])==true){
+      RangRa[i]=180-LangRa[i];
+    }
 
+    /* This sometimes happens that when the Rx is very close to the peak point (or the turning point) of the ray then its hard to calculate the derivative around that area since the solution blows up around that area. therefore this is a good approximation. */
+    if(z1!=z0 && isnan(RangRa[i])==true){
+      RangRa[i]=90;
+    }
+
+  }//// i loop
+  
   dsw=0;
   /* If the Tx and Rx depth were switched then put them back to their original position */
   if(Flip==true){
@@ -527,19 +1028,34 @@ double *GetRefractedRayPar(double z0, double x1 ,double z1, double LangR, double
     z1=dsw;
   }
   
-  output[0]=RangRa;
-  output[1]=LangRa;
-  output[2]=timeRa;
-  output[3]=lvalueRa;
-  output[4]=checkzeroRa;
-  output[5]=timeRa1;
-  output[6]=timeRa2;
-  output[7]=zmax;
-
+  output[0]=RangRa[0];
+  output[1]=LangRa[0];
+  output[2]=timeRa[0];
+  output[3]=lvalueRa[0];
+  output[4]=checkzeroRa[0];
+  output[5]=timeRa1[0];
+  output[6]=timeRa2[0];
+  output[7]=zmax[0];
+  
   /* If the flip case is true where we flipped Rx and Tx depths to trace rays then make sure everything is switched back before we give the output to the user. */
   if(Flip==true){
-    output[0]=180-LangRa;
-    output[1]=180-RangRa;
+    output[0]=180-LangRa[0];
+    output[1]=180-RangRa[0];
+  }
+
+  output[8]=RangRa[1];
+  output[9]=LangRa[1];
+  output[10]=timeRa[1];
+  output[11]=lvalueRa[1];
+  output[12]=checkzeroRa[1];
+  output[13]=timeRa1[1];
+  output[14]=timeRa2[1];
+  output[15]=zmax[1];
+  
+  /* If the flip case is true where we flipped Rx and Tx depths to trace rays then make sure everything is switched back before we give the output to the user. */
+  if(Flip==true){
+    output[8]=180-LangRa[1];
+    output[9]=180-RangRa[1];
   }
   
   return output;
@@ -559,7 +1075,7 @@ void GetFullDirectRayPath(double z0, double x1, double z1,double lvalueD, vector
    
   /* Set the name of the text files */
   ofstream aoutD("DirectRay.txt");
-  /* Set the step size for plotting. */
+  /* Set the step size for plotting */
   double h=0.1;
   /* Set the total steps required for looping over the whole ray path */
   int dmax=100000;
@@ -572,11 +1088,38 @@ void GetFullDirectRayPath(double z0, double x1, double z1,double lvalueD, vector
   double checknan=0;
   struct fDnfR_params params6a;
   struct fDnfR_params params6b;
+  struct fDnfR_params params6c;
+  struct fDnfR_params params6d;
   
   for(int i=0;i<dmax;i++){
     params6a = {A_ice, GetB(zn), GetC(zn), lvalueD};
     params6b = {A_ice, GetB(z0), GetC(z0), lvalueD};
-    xn=fDnfR(zn,&params6a)-fDnfR(z0,&params6b);
+    params6c = {A_ice, GetB(TransitionBoundary), GetC(TransitionBoundary), lvalueD};
+    params6d = {A_ice, GetB(TransitionBoundary+1e-7), GetC(TransitionBoundary+1e-7), lvalueD};
+
+    if(TransitionBoundary!=0){
+      if (fabs(z0)<TransitionBoundary && fabs(zn)<TransitionBoundary){
+	xn=fDnfR(zn,&params6a) - fDnfR(z0,&params6b);
+      }
+      if (fabs(z0)>TransitionBoundary && fabs(zn)<TransitionBoundary){
+	xn=fDnfR(zn,&params6a) - fDnfR(-TransitionBoundary,&params6c) + fDnfR(-(TransitionBoundary+1e-7),&params6d) - fDnfR(z0,&params6b);
+      }
+      if (fabs(z0)>TransitionBoundary && fabs(zn)>TransitionBoundary){
+	xn=fDnfR(zn,&params6a) - fDnfR(z0,&params6b);
+      }
+      if (fabs(z0)==TransitionBoundary && fabs(zn)<TransitionBoundary){
+	xn=fDnfR(zn,&params6a) - fDnfR(z0,&params6b);
+      }
+      if (fabs(z0)==TransitionBoundary && fabs(zn)==TransitionBoundary){
+	xn=fDnfR(zn,&params6a) - fDnfR(z0,&params6b);
+      }
+      if (fabs(z0)>TransitionBoundary && fabs(zn)==TransitionBoundary){
+	xn=fDnfR(zn,&params6a) - fDnfR(-TransitionBoundary,&params6c) + fDnfR(-(TransitionBoundary+1e-7),&params6d) - fDnfR(z0,&params6b);
+      }
+    }else{
+      xn=fDnfR(zn,&params6a) - fDnfR(z0,&params6b);
+    }
+    
     checknan=fDnfR(zn,&params6a);
     if(isnan(checknan)==false && Flip==false){
       x.push_back(xn);
@@ -599,22 +1142,21 @@ void GetFullDirectRayPath(double z0, double x1, double z1,double lvalueD, vector
     }  
   }
 
+  params6a = {A_ice, GetB(zn), GetC(zn), lvalueD};
+  params6b = {A_ice, GetB(z0), GetC(z0), lvalueD};
+   
   if(Flip==true){
-    params6a = {A_ice, GetB(zn), GetC(zn), lvalueD};
-    params6b = {A_ice, GetB(z0), GetC(z0), lvalueD};
     xn=fDnfR(zn,&params6a)-fDnfR(z0,&params6b); 
     z.push_back(z0);
     x.push_back(x1-xn);
   }else{
-    params6a = {A_ice, GetB(zn), GetC(zn), lvalueD};
-    params6b = {A_ice, GetB(z0), GetC(z0), lvalueD};
     xn=fDnfR(zn,&params6a)-fDnfR(z0,&params6b);
     z.push_back(z0);
     x.push_back(xn);
-  }  
+  }
   
   dsw=0;
-  /*If the Tx and Rx depth were switched then put them back to their original position */
+  /* If the Tx and Rx depth were switched then put them back to their original position */
   if(Flip==true){
     dsw=z0;
     z0=z1;
@@ -625,7 +1167,7 @@ void GetFullDirectRayPath(double z0, double x1, double z1,double lvalueD, vector
 
 /*This function returns the x and z values for the full Reflected ray path in 2 vectors and also prints out the ray path in a text file */
 void GetFullReflectedRayPath(double z0, double x1, double z1,double lvalueR, vector <double> &x, vector <double> &z){
-
+  
   /* My raytracer can only work the Tx is below the Rx. If the Tx is higher than the Rx than we need to flip the depths to allow for raytracing and then we will flip them back later at the end */
   bool Flip=false;
   double dsw=z0;
@@ -651,13 +1193,51 @@ void GetFullReflectedRayPath(double z0, double x1, double z1,double lvalueR, vec
   struct fDnfR_params params6a;
   struct fDnfR_params params6b;
   struct fDnfR_params params6c;
+  struct fDnfR_params params6f;
+  struct fDnfR_params params6d;
 
   /* Map out the 1st part of the reflected ray */
   for(int i=0;i<dmax;i++){
     params6a = {A_ice, GetB(zn), -GetC(zn), lvalueR};
     params6b = {A_ice, GetB(z0), -GetC(z0), lvalueR};
-    params6c = {A_ice, GetB(0.0000001), -GetC(0.0000001), lvalueR};
-    xn=(fDnfR(-zn,&params6a)-fDnfR(-z0,&params6b)+2*fabs(fDnfR(0.0000001,&params6c)-fDnfR(-z0,&params6b)));
+    params6c = {A_ice, GetB(1e-7), -GetC(1e-7), lvalueR};
+    params6d = {A_ice, GetB(TransitionBoundary), -GetC(TransitionBoundary), lvalueR};
+    params6f = {A_ice, GetB(TransitionBoundary+1e-7), -GetC(TransitionBoundary+1e-7), lvalueR};
+    double distancez0z1=0;
+    double distancez0surface=0;  
+
+    if(TransitionBoundary!=0){
+      if (fabs(z0)>TransitionBoundary && fabs(zn)>TransitionBoundary){
+	distancez0z1=fDnfR(-zn,&params6a) - fDnfR(-z0,&params6b);
+	distancez0surface=fDnfR(1e-7,&params6c) - fDnfR(TransitionBoundary,&params6d) + fDnfR(TransitionBoundary+1e-7,&params6f) - fDnfR(-z0,&params6b);
+      }
+      if (fabs(z0)>TransitionBoundary && fabs(zn)<TransitionBoundary){
+	distancez0z1=fDnfR(-zn,&params6a) - fDnfR(TransitionBoundary,&params6d) + fDnfR(TransitionBoundary+1e-7,&params6f) - fDnfR(-z0,&params6b);
+	distancez0surface=fDnfR(1e-7,&params6c) - fDnfR(TransitionBoundary,&params6d) + fDnfR(TransitionBoundary+1e-7,&params6f) - fDnfR(-z0,&params6b);
+      }
+      if (fabs(z0)<TransitionBoundary && fabs(zn)<TransitionBoundary){
+	distancez0z1=fDnfR(-zn,&params6a) - fDnfR(-z0,&params6b);
+	distancez0surface=fDnfR(1e-7,&params6c) - fDnfR(-z0,&params6b); 
+      }
+      if (fabs(z0)==TransitionBoundary && fabs(zn)<TransitionBoundary){
+	distancez0z1=fDnfR(-zn,&params6a) - fDnfR(-z0,&params6b);
+	distancez0surface=fDnfR(1e-7,&params6c) - fDnfR(-z0,&params6b); 
+      }
+      if (fabs(z0)==TransitionBoundary && fabs(zn)==TransitionBoundary){
+	distancez0z1=fDnfR(-zn,&params6a) - fDnfR(-z0,&params6b);
+	distancez0surface=fDnfR(1e-7,&params6c) - fDnfR(-z0,&params6b);
+      }
+      if (fabs(z0)>TransitionBoundary && fabs(zn)==TransitionBoundary){
+	distancez0z1=fDnfR(-zn,&params6a) - fDnfR(TransitionBoundary,&params6d) + fDnfR(TransitionBoundary+1e-7,&params6f) - fDnfR(-z0,&params6b);
+	distancez0surface=fDnfR(1e-7,&params6c) - fDnfR(TransitionBoundary,&params6d) + fDnfR(TransitionBoundary+1e-7,&params6f) - fDnfR(-z0,&params6b);
+      }
+    }else{
+      distancez0z1=fDnfR(-zn,&params6a) - fDnfR(-z0,&params6b);
+      distancez0surface=fDnfR(1e-7,&params6c) - fDnfR(-z0,&params6b);
+    }
+
+    xn= distancez0z1 - 2*(distancez0surface);
+ 
     checknan=fDnfR(-zn,&params6a);
     if(isnan(checknan)==false && zn<=0 && Flip==false){
       x.push_back(xn);
@@ -680,11 +1260,36 @@ void GetFullReflectedRayPath(double z0, double x1, double z1,double lvalueR, vec
   }
   
   /* Map out the 2nd part of the reflected ray */
-  zn=-0.0000001;
+  zn=-1e-7;
   for(int i=0;i<dmax;i++){  
     params6a = {A_ice, GetB(zn), GetC(zn), lvalueR};
     params6b = {A_ice, GetB(z0), GetC(z0), lvalueR};
-    xn=fDnfR(zn,&params6a)-fDnfR(z0,&params6b);
+    params6c = {A_ice, GetB(TransitionBoundary), GetC(TransitionBoundary), lvalueR};
+    params6d = {A_ice, GetB(TransitionBoundary+1e-7), GetC(TransitionBoundary+1e-7), lvalueR};
+
+    if(TransitionBoundary!=0){
+      if (fabs(z0)<TransitionBoundary && fabs(zn)<TransitionBoundary){
+	xn=fDnfR(zn,&params6a) - fDnfR(z0,&params6b);
+      }
+      if (fabs(z0)>TransitionBoundary && fabs(zn)<TransitionBoundary){
+	xn=fDnfR(zn,&params6a) - fDnfR(-TransitionBoundary,&params6c) + fDnfR(-(TransitionBoundary+1e-7),&params6d) - fDnfR(z0,&params6b);
+      }
+      if (fabs(z0)>TransitionBoundary && fabs(zn)>TransitionBoundary){
+	xn=fDnfR(zn,&params6a) - fDnfR(z0,&params6b);
+      }
+      if (fabs(z0)==TransitionBoundary && fabs(zn)<TransitionBoundary){
+	xn=fDnfR(zn,&params6a) - fDnfR(z0,&params6b);
+      }
+      if (fabs(z0)==TransitionBoundary && fabs(zn)==TransitionBoundary){
+	xn=fDnfR(zn,&params6a) - fDnfR(z0,&params6b);
+      }
+      if (fabs(z0)>TransitionBoundary && fabs(zn)==TransitionBoundary){
+	xn=fDnfR(zn,&params6a) - fDnfR(-TransitionBoundary,&params6c) + fDnfR(-(TransitionBoundary+1e-6),&params6d) - fDnfR(z0,&params6b);
+      }
+    }else{
+      xn=fDnfR(zn,&params6a) - fDnfR(z0,&params6b);
+    }
+    
     checknan=fDnfR(zn,&params6a);
     if(isnan(checknan)==false && Flip==false){
       x.push_back(xn);
@@ -706,18 +1311,17 @@ void GetFullReflectedRayPath(double z0, double x1, double z1,double lvalueR, vec
       i=dmax+2;
     }
   }
+
+  params6a = {A_ice, GetB(zn), GetC(zn), lvalueR};
+  params6b = {A_ice, GetB(z0), GetC(z0), lvalueR};
   if(Flip==true){
-    params6a = {A_ice, GetB(zn), GetC(zn), lvalueR};
-    params6b = {A_ice, GetB(z0), GetC(z0), lvalueR};
-    xn=fDnfR(zn,&params6a)-fDnfR(z0,&params6b); 
-    z.push_back(z0);
+    xn=fDnfR(zn,&params6a) -fDnfR(z0,&params6b);
     x.push_back(x1-xn);
+    z.push_back(zn);
   }else{
-    params6a = {A_ice, GetB(zn), GetC(zn), lvalueR};
-    params6b = {A_ice, GetB(z0), GetC(z0), lvalueR};
-    xn=fDnfR(zn,&params6a)-fDnfR(z0,&params6b);
-    z.push_back(z0);
+    xn=fDnfR(zn,&params6a) - fDnfR(z0,&params6b);
     x.push_back(xn);
+    z.push_back(zn);
   }
   
   dsw=0;
@@ -731,7 +1335,7 @@ void GetFullReflectedRayPath(double z0, double x1, double z1,double lvalueR, vec
 }
 
 /* This function returns the x and z values for the full Refracted ray path in 2 vectors and also prints out the ray path in a text file */
-void GetFullRefractedRayPath(double z0, double x1, double z1, double zmax, double lvalueRa, vector <double> &x, vector <double> &z){
+void GetFullRefractedRayPath(double z0, double x1, double z1, double zmax, double lvalueRa, vector <double> &x, vector <double> &z,int raynumber){
 
   /* My raytracer can only work the Tx is below the Rx. If the Tx is higher than the Rx than we need to flip the depths to allow for raytracing and then we will flip them back later at the end */
   bool Flip=false;
@@ -741,9 +1345,15 @@ void GetFullRefractedRayPath(double z0, double x1, double z1, double zmax, doubl
     z1=dsw;
     Flip=true;
   }
-  
+
+  ofstream aoutRa;
   /* Set the name of the text files */
-  ofstream aoutRa("RefractedRay.txt");
+  if(raynumber==1){
+    aoutRa.open("RefractedRay1.txt");
+  }
+  if(raynumber==2){
+    aoutRa.open("RefractedRay2.txt");
+  }
   /* Set the step size for plotting. */
   double h=0.1;
   /* Set the total steps required for looping over the whole ray path */
@@ -758,13 +1368,56 @@ void GetFullRefractedRayPath(double z0, double x1, double z1, double zmax, doubl
   struct fDnfR_params params6a;
   struct fDnfR_params params6b;
   struct fDnfR_params params6c;  
+  struct fDnfR_params params6f;
+  struct fDnfR_params params6d;
 
   /* Map out the 1st part of the refracted ray */
   for(int i=0;i<dmax;i++){
     params6a = {A_ice, GetB(zn), -GetC(zn), lvalueRa};
     params6b = {A_ice, GetB(z0), -GetC(z0), lvalueRa};
     params6c = {A_ice, GetB(zmax), -GetC(zmax), lvalueRa};
-    xn=(fDnfR(-zn,&params6a)-fDnfR(-z0,&params6b)+2*fabs(fDnfR(zmax,&params6c)-fDnfR(-z0,&params6b)));
+    params6d = {A_ice, GetB(TransitionBoundary), -GetC(TransitionBoundary), lvalueRa};
+    params6f = {A_ice, GetB(TransitionBoundary+1e-6), -GetC(TransitionBoundary+1e-6), lvalueRa};
+
+    double distancez0z1=0;
+    double distancez0surface=0;  
+    if(TransitionBoundary!=0){
+      if (fabs(z0)>TransitionBoundary && fabs(zn)>TransitionBoundary){
+	if(zmax<=TransitionBoundary){
+	  distancez0z1=fDnfR(-zn,&params6a) - fDnfR(-z0,&params6b);
+	  distancez0surface=fDnfR(zmax,&params6c) - fDnfR(TransitionBoundary,&params6d) + fDnfR(TransitionBoundary+1e-6,&params6f) - fDnfR(-z0,&params6b);
+	}else{
+	  distancez0z1=fDnfR(-zn,&params6a) - fDnfR(-z0,&params6b);
+	  distancez0surface=fDnfR(zmax,&params6c) - fDnfR(-z0,&params6b);
+	}
+      }
+      if (fabs(z0)>TransitionBoundary && fabs(zn)<TransitionBoundary){
+	distancez0z1=fDnfR(-zn,&params6a) - fDnfR(TransitionBoundary,&params6d) + fDnfR(TransitionBoundary+1e-6,&params6f) - fDnfR(-z0,&params6b);
+	distancez0surface=fDnfR(zmax,&params6c) - fDnfR(TransitionBoundary,&params6d) + fDnfR(TransitionBoundary+1e-6,&params6f) - fDnfR(-z0,&params6b);
+      }
+      if (fabs(z0)<TransitionBoundary && fabs(zn)<TransitionBoundary){
+	distancez0z1=fDnfR(-zn,&params6a) - fDnfR(-z0,&params6b);
+	distancez0surface=fDnfR(zmax,&params6c) - fDnfR(-z0,&params6b);
+      }
+      if (fabs(z0)==TransitionBoundary && fabs(zn)<TransitionBoundary){
+	distancez0z1=fDnfR(-zn,&params6a) - fDnfR(-z0,&params6b);
+	distancez0surface=fDnfR(zmax,&params6c) - fDnfR(-z0,&params6b); 
+      }
+      if (fabs(z0)==TransitionBoundary && fabs(zn)==TransitionBoundary){
+	distancez0z1=fDnfR(-zn,&params6a) - fDnfR(-z0,&params6b);
+	distancez0surface=fDnfR(zmax,&params6c) - fDnfR(-z0,&params6b); 
+      }
+      if (fabs(z0)>TransitionBoundary && fabs(zn)==TransitionBoundary){
+	distancez0z1=fDnfR(-zn,&params6a) - fDnfR(TransitionBoundary,&params6d) + fDnfR(TransitionBoundary+1e-6,&params6f) - fDnfR(-z0,&params6b);
+	distancez0surface=fDnfR(zmax,&params6c) - fDnfR(TransitionBoundary,&params6d) + fDnfR(TransitionBoundary+1e-6,&params6f) - fDnfR(-z0,&params6b); 
+      }
+    }else{
+      distancez0z1=fDnfR(-zn,&params6a) - fDnfR(-z0,&params6b);
+      distancez0surface=fDnfR(zmax,&params6c) - fDnfR(-z0,&params6b);
+    }
+
+    xn= distancez0z1 - 2*(distancez0surface);
+    
     checknan=fDnfR(-zn,&params6a);
     if(isnan(checknan)==false && zn<=0 && Flip==false){
       x.push_back(xn);
@@ -791,7 +1444,32 @@ void GetFullRefractedRayPath(double z0, double x1, double z1, double zmax, doubl
   for(int i=0;i<dmax;i++){  
     params6a = {A_ice, GetB(zn), GetC(zn), lvalueRa};
     params6b = {A_ice, GetB(z0), GetC(z0), lvalueRa};
-    xn=fDnfR(zn,&params6a)-fDnfR(z0,&params6b);
+    params6c = {A_ice, GetB(TransitionBoundary), GetC(TransitionBoundary), lvalueRa};
+    params6d = {A_ice, GetB(TransitionBoundary+1e-6), GetC(TransitionBoundary+1e-6), lvalueRa}; 
+   
+    if(TransitionBoundary!=0){
+      if (fabs(z0)<TransitionBoundary && fabs(zn)<TransitionBoundary){
+	xn=fDnfR(zn,&params6a) - fDnfR(z0,&params6b);
+      }
+      if (fabs(z0)>TransitionBoundary && fabs(zn)<TransitionBoundary){
+	xn=fDnfR(zn,&params6a) - fDnfR(-TransitionBoundary,&params6c) + fDnfR(-(TransitionBoundary+1e-6),&params6d) - fDnfR(z0,&params6b);
+      }
+      if (fabs(z0)>TransitionBoundary && fabs(zn)>TransitionBoundary){
+	xn=fDnfR(zn,&params6a) - fDnfR(z0,&params6b);
+      }
+      if (fabs(z0)==TransitionBoundary && fabs(zn)<TransitionBoundary){
+	xn=fDnfR(zn,&params6a) - fDnfR(z0,&params6b);
+      }
+      if (fabs(z0)==TransitionBoundary && fabs(zn)==TransitionBoundary){
+	xn=fDnfR(zn,&params6a) - fDnfR(z0,&params6b);
+      }
+      if (fabs(z0)>TransitionBoundary && fabs(zn)==TransitionBoundary){
+	xn=fDnfR(zn,&params6a) - fDnfR(-TransitionBoundary,&params6c) + fDnfR(-(TransitionBoundary+1e-6),&params6d) - fDnfR(z0,&params6b);
+      }
+    }else{
+      xn=fDnfR(zn,&params6a) - fDnfR(z0,&params6b);
+    }
+    
     checknan=fDnfR(zn,&params6a);
     if(isnan(checknan)==false && Flip==false){
       x.push_back(xn);
@@ -813,19 +1491,18 @@ void GetFullRefractedRayPath(double z0, double x1, double z1, double zmax, doubl
       i=dmax+2;
     }
   }
+
+  params6a = {A_ice, GetB(zn), GetC(zn), lvalueRa};
+  params6b = {A_ice, GetB(z0), GetC(z0), lvalueRa};  
   if(Flip==true){
-    params6a = {A_ice, GetB(zn), GetC(zn), lvalueRa};
-    params6b = {A_ice, GetB(z0), GetC(z0), lvalueRa};
     xn=fDnfR(zn,&params6a)-fDnfR(z0,&params6b); 
-    z.push_back(z0);
     x.push_back(x1-xn);
+    z.push_back(zn);
   }else{
-    params6a = {A_ice, GetB(zn), GetC(zn), lvalueRa};
-    params6b = {A_ice, GetB(z0), GetC(z0), lvalueRa};
     xn=fDnfR(zn,&params6a)-fDnfR(z0,&params6b);
-    z.push_back(z0);
     x.push_back(xn);
-  }
+    z.push_back(zn);
+  }  
   
   dsw=0;
   /* If the Tx and Rx depth were switched then put them back to their original position */
@@ -837,47 +1514,49 @@ void GetFullRefractedRayPath(double z0, double x1, double z1, double zmax, doubl
   
 }
 
-/* function for storing all the possible ray paths */
-void PlotAndStoreRays(double x0,double z0, double z1, double x1, double zmax, double lvalues[3], double checkzeroes[3]){
+/* function for plotting and storing all the rays */
+void PlotAndStoreRays(double x0,double z0, double z1, double x1, double zmax[2], double lvalues[4], double checkzeroes[4]){
   
   double lvalueD=lvalues[0];
   double lvalueR=lvalues[1];
-  double lvalueRa=lvalues[2];
+  double lvalueRa[2]={lvalues[2],lvalues[3]};
 
   double checkzeroD=checkzeroes[0];
   double checkzeroR=checkzeroes[1];
-  double checkzeroRa=checkzeroes[2]; 
+  double checkzeroRa[2]={checkzeroes[2],checkzeroes[3]}; 
 
   vector <double> xD,zD;
   vector <double> xR,zR;
-  vector <double> xRa,zRa;
+  vector <double> xRa[2],zRa[2];
   GetFullDirectRayPath(z0,x1,z1,lvalueD,xD,zD);
   GetFullReflectedRayPath(z0,x1,z1,lvalueR,xR,zR);
-  if((fabs(checkzeroR)>0.5 || fabs(checkzeroD)>0.5) && fabs(checkzeroRa)<0.5){
-    GetFullRefractedRayPath(z0,x1,z1,zmax,lvalueRa,xRa,zRa);
+  if((fabs(checkzeroR)>0.5 || fabs(checkzeroD)>0.5) && fabs(checkzeroRa[0])<0.5){
+    GetFullRefractedRayPath(z0,x1,z1,zmax[0],lvalueRa[0],xRa[0],zRa[0],1);
+    if(fabs(checkzeroRa[1])<0.5){
+      GetFullRefractedRayPath(z0,x1,z1,zmax[1],lvalueRa[1],xRa[1],zRa[1],2);
+    }
   }
   
   /* An example of how the function returns the filled in vector and you can see the printed out values as a sanity check */
   // for (int i=0;i<xD.size();i++){
   //   cout<<i<<" "<<xD[i]<<" "<<zD[i]<<endl;
   // }
-
 }
 
 double *IceRayTracing(double x0, double z0, double x1, double z1){
 
-  /* define a pointer to give back the output of raytracing */
-  double *output=new double[12];
+  /* define a pointer to give back the output of raytracing */ 
+  double *output=new double[25];
 
   /* Store the ray paths in text files */
-  bool StoreRayPaths=false;
+  bool PlotRayPaths=false;
   /* calculate the attenuation (not included yet!) */
   bool attcal=false;
   
-  double Txcor[2]={x0,z0};//Tx positions
-  double Rxcor[2]={x1,z1};//Rx Positions
+  double Txcor[2]={x0,z0};/* Tx positions */
+  double Rxcor[2]={x1,z1};/* Rx Positions */
   
-  /* ********This part of the code will try to get the Direct ray between Rx and Tx.********** */
+  /*  ********This part of the code will try to get the Direct ray between Rx and Tx.********** */
   double* GetDirectRay=GetDirectRayPar(z0,x1,z1);
   double RangD=GetDirectRay[0];
   double LangD=GetDirectRay[1];
@@ -899,81 +1578,114 @@ double *IceRayTracing(double x0, double z0, double x1, double z1){
   delete []GetReflectedRay;
 
   /* ********This part of the code will try to get the Refracted ray between Rx and Tx.********** */
-    double RangRa=0;
-    double LangRa=0;
-    double timeRa=0;
-    double lvalueRa=0; 
-    double checkzeroRa=1000;
-    double timeRa1=0;
-    double timeRa2=0;
-    double zmax=0;
-
-    /* This if condition makes sure that we only try to find a refracted ray if we don't get two possible ray paths from the direct and reflected case. This saves us alot of time since we know that between each Tx and Rx position we only expect 2 rays. */
+  double RangRa[2]={0,0};
+  double LangRa[2]={0,0};
+  double timeRa[2]={0,0};
+  double lvalueRa[2]={0,0}; 
+  double checkzeroRa[2]={-1000,-1000};
+  double timeRa1[2]={0,0};
+  double timeRa2[2]={0,0};
+  double zmax[2]={0,0};
+  
+  /* This if condition makes sure that we only try to find a refracted ray if we don't get two possible ray paths from the direct and reflected case. This saves us alot of time since we know that between each Tx and Rx position we only expect 2 rays. */
   if(fabs(checkzeroR)>0.5 || fabs(checkzeroD)>0.5){
     double* GetRefractedRay=GetRefractedRayPar(z0,x1,z1,LangR,RangR);
-    RangRa=GetRefractedRay[0];
-    LangRa=GetRefractedRay[1];
-    timeRa=GetRefractedRay[2];
-    lvalueRa=GetRefractedRay[3]; 
-    checkzeroRa=GetRefractedRay[4];
-    timeRa1=GetRefractedRay[5];
-    timeRa2=GetRefractedRay[6];
-    zmax=GetRefractedRay[7];
+    RangRa[0]=GetRefractedRay[0];
+    LangRa[0]=GetRefractedRay[1];
+    timeRa[0]=GetRefractedRay[2];
+    lvalueRa[0]=GetRefractedRay[3]; 
+    checkzeroRa[0]=GetRefractedRay[4];
+    timeRa1[0]=GetRefractedRay[5];
+    timeRa2[0]=GetRefractedRay[6];
+    zmax[0]=GetRefractedRay[7];
+
+    if(fabs(checkzeroR)>0.5 && fabs(checkzeroD)>0.5){
+      RangRa[1]=GetRefractedRay[8];
+      LangRa[1]=GetRefractedRay[9];
+      timeRa[1]=GetRefractedRay[10];
+      lvalueRa[1]=GetRefractedRay[11]; 
+      checkzeroRa[1]=GetRefractedRay[12];
+      timeRa1[1]=GetRefractedRay[13];
+      timeRa2[1]=GetRefractedRay[14];
+      zmax[1]=GetRefractedRay[15];
+    }
+
     delete []GetRefractedRay;
   }
-
-  /* Fill in the output pointer after calculating all the results */
-  output[0]=LangD;
-  output[1]=LangR;
-  output[2]=LangRa;
-  output[3]=timeD;
-  output[4]=timeR;
-  output[5]=timeRa;
-  output[6]=RangD;
-  output[7]=RangR;
-  output[8]=RangRa;
-
-  /* This part of the code can be used if the user wants to plot the individual ray paths. This part of the code prints out the individual ray paths in text files. */
-  if(StoreRayPaths==true){
-    double lvalues[3];
+  
+  /* This part of the code can be used if the user wants to plot the individual ray paths. This part of the code prints out the individual ray paths in text files and also plots them on a canvas */
+  if(PlotRayPaths==true){
+    double lvalues[4];
     lvalues[0]=lvalueD;
     lvalues[1]=lvalueR;
-    lvalues[2]=lvalueRa;
+    lvalues[2]=lvalueRa[0];
+    lvalues[3]=lvalueRa[1];
 
-    double checkzeroes[3];
+    double checkzeroes[4];
     checkzeroes[0]=checkzeroD;
     checkzeroes[1]=checkzeroR;
-    checkzeroes[2]=checkzeroRa;
+    checkzeroes[2]=checkzeroRa[0];
+    checkzeroes[3]=checkzeroRa[1];
     
     PlotAndStoreRays(x0,z0,z1,x1,zmax,lvalues,checkzeroes);
   }
   
   /* print out all the output from the code */
-  //cout<<0<<" ,x0= "<<x0<<" ,z0= "<<z0<<" ,x1= "<<x1<<" ,z1= "<<z1<<" ,langRa= "<<output[2]<<" ,langR= "<<output[1]<<" ,langD= "<<output[0]<<" ,langD-langR= "<<output[0]-output[1]<<" ,langD-langRa= "<<output[0]-output[2]<<" ,RangRa= "<<output[8]<<" ,RangR= "<<output[7]<<" ,RangD= "<<output[6]<<" ,RangR-RangD= "<<output[7]-output[6]<<" ,RangRa-RangD= "<<output[8]-output[6]<<" ,timeRa= "<<output[5]<<" ,timeR= "<<output[4]<<" ,timeD= "<<output[3]<<" ,timeR-timeD= "<<output[4]-output[3]<<" ,timeRa-timeD= "<<output[5]-output[3]<<" ,lvalueRa "<<lvalueRa<<" ,lvalueR "<<lvalueR<<" "<<" ,lvalueD "<<lvalueD<<" ,checkzeroRa "<<checkzeroRa<<" ,checkzeroR "<<checkzeroR<<" ,checkzeroD "<<checkzeroD<<endl;
+  //cout<<0<<" ,x0= "<<x0<<" ,z0= "<<z0<<" ,x1= "<<x1<<" ,z1= "<<z1<<" ,langRa= "<<LangRa[0]<<" ,langR= "<<LangR<<" ,langD= "<<LangD<<" ,langD-langR= "<<LangD-LangR<<" ,langD-langRa= "<<LangD-LangRa[0]<<" ,RangRa= "<<RangRa[0]<<" ,RangR= "<<RangR<<" ,RangD= "<<RangD<<" ,RangR-RangD= "<<RangR-RangD<<" ,RangRa-RangD= "<<RangRa[0]-RangD<<" ,timeRa= "<<timeRa[0]<<" ,timeR= "<<timeRa[0]<<" ,timeD= "<<timeD<<" ,timeR-timeD= "<<timeR-timeD<<" ,timeRa-timeD= "<<timeRa[0]-timeD<<" ,lvalueRa "<<lvalueRa[0]<<" ,lvalueR "<<lvalueR<<" "<<" ,lvalueD "<<lvalueD<<" ,checkzeroRa "<<checkzeroRa[0]<<" ,checkzeroR "<<checkzeroR<<" ,checkzeroD "<<checkzeroD<<endl;
 
+  //cout<<0<<" ,x0= "<<x0<<" ,z0= "<<z0<<" ,x1= "<<x1<<" ,z1= "<<z1<<" ,langRa= "<<LangRa[1]<<" ,langR= "<<LangR<<" ,langD= "<<LangD<<" ,langD-langR= "<<LangD-LangR<<" ,langD-langRa= "<<LangD-LangRa[1]<<" ,RangRa= "<<RangRa[1]<<" ,RangR= "<<RangR<<" ,RangD= "<<RangD<<" ,RangR-RangD= "<<RangR-RangD<<" ,RangRa-RangD= "<<RangRa[1]-RangD<<" ,timeRa= "<<timeRa[1]<<" ,timeR= "<<timeRa[1]<<" ,timeD= "<<timeD<<" ,timeR-timeD= "<<timeR-timeD<<" ,timeRa-timeD= "<<timeRa[1]-timeD<<" ,lvalueRa "<<lvalueRa[1]<<" ,lvalueR "<<lvalueR<<" "<<" ,lvalueD "<<lvalueD<<" ,checkzeroRa "<<checkzeroRa[1]<<" ,checkzeroR "<<checkzeroR<<" ,checkzeroD "<<checkzeroD<<endl;
+
+  /* Fill in the output pointer after calculating all the results */
+  output[0]=LangD;
+  output[1]=LangR;
+  output[2]=LangRa[0];
+  output[3]=LangRa[1];
+  output[4]=timeD;
+  output[5]=timeR;
+  output[6]=timeRa[0];
+  output[7]=timeRa[1];
+  output[8]=RangD;
+  output[9]=RangR;
+  output[10]=RangRa[0];
+  output[11]=RangRa[1];
+  
   /* fill in the output array part where you fill in the times for the two parts of the reflected or refracted rays */
   if(fabs(checkzeroR)<0.5){
-    output[9]=timeR1;
-    output[10]=timeR2;
+    output[12]=timeR1;
+    output[13]=timeR2;
   }
   
-  if(fabs(checkzeroRa)<0.5){
-    output[9]=timeRa1;
-    output[10]=timeRa2;
+  if(fabs(checkzeroRa[0])<0.5){
+    output[14]=timeRa1[0];
+    output[15]=timeRa2[0];
   }
 
-  output[11]=AngleOfIncidenceInIce;
+  if(fabs(checkzeroRa[1])<0.5){
+    output[16]=timeRa1[1];
+    output[17]=timeRa2[1];
+  }
+  
+  output[18]=AngleOfIncidenceInIce;
+  output[19]=lvalueD;
+  output[20]=lvalueR;
+  output[21]=lvalueRa[0];
+  output[22]=lvalueRa[1];
+  output[23]=zmax[0];  
+  output[24]=zmax[1];
   
   /* Set the recieve angle to be zero for a ray which did not give us a possible path between Tx and Rx. I use this as a flag to determine which two rays gave me possible ray paths. */
   if(fabs(checkzeroD)>0.5){
-    output[6]=-1000;
-  }
-  if(fabs(checkzeroR)>0.5){
-    output[7]=-1000;
-  }
-  if(fabs(checkzeroRa)>0.5 || (fabs(checkzeroD)<0.5 && fabs(checkzeroR)<0.5)){
     output[8]=-1000;
   }
+  if(fabs(checkzeroR)>0.5){
+    output[9]=-1000;
+  }
+  if(fabs(checkzeroRa[0])>0.5){
+    output[10]=-1000;
+  }
+  if(fabs(checkzeroRa[1])>0.5){
+    output[11]=-1000;
+  } 
   
   return output;
 }
@@ -1019,6 +1731,21 @@ double fRa_Cnz(double x,void *params){
   return fDnfR_L_Cnz(x,&params1a) - fDnfR_L_Cnz(x,&params1b) - 2*( fDnfR_L_Cnz(x,&params1c) - fDnfR_L_Cnz(x,&params1b) ) - x1;
 }
 
+double fRa_Cnz_df(double x,void *params){
+  gsl_function F;
+  F.function = &fRa_Cnz;
+  F.params = params;
+ 
+  double result,abserr;
+  gsl_deriv_central (&F, x, 1e-8, &result, &abserr);
+
+  return result;
+}
+
+void fRa_Cnz_fdf (double x, void *params,double *y, double *dy){ 
+  *y = fRa_Cnz(x,params);
+  *dy = fRa_Cnz_df(x,params);
+}
 
 /* This functions works for the Direct ray and gives you back the launch angle, receive angle and propagation time of the ray together with values of the L parameter. This for constant refractive index*/
 double* GetDirectRayPar_Cnz(double z0, double x1, double z1, double A_ice_Cnz){
@@ -1034,6 +1761,7 @@ double* GetDirectRayPar_Cnz(double z0, double x1, double z1, double A_ice_Cnz){
     Flip=true;
   }
 
+  
   /* Calculate the launch angle and the value of the L parameter */
   double LangD=(pi*0.5-atan(fabs(z1-z0)/x1))*(180.0/pi);
   double lvalueD=A_ice_Cnz*sin(LangD*(pi/180.0));
@@ -1083,10 +1811,17 @@ double *GetReflectedRayPar_Cnz(double z0, double x1 , double z1, double A_ice_Cn
   struct fDanfRa_params params3= {A_ice_Cnz, z0, x1, z1};
   F3.function = &fRa_Cnz;
   F3.params = &params3;
-  
+
+  // gsl_function_fdf F3;
+  // struct fDanfRa_params params3= {A_ice_Cnz, z0, x1, z1};
+  // F3.f = &fRa_Cnz;
+  // F3.df = &fRa_Cnz_df;
+  // F3.fdf = &fRa_Cnz_fdf;
+  // F3.params = &params3;
+
   /* In my raytracing solution given in the function fDnfR_Cnz the launch angle (or the L parameter) has limit placed on it by this part in the solution that L<A . This sets the upper limit in our minimisation to get the launch angle (or the L parameter). Here I am basically setting the upper limit to be the angle of the direct ray as GSL requires that my function is well behaved on the upper and lower bounds I give it for minimisation. */
   double UpperLimitL=A_ice_Cnz*sin(pi*0.5-atan(fabs(z1-z0)/x1));
-  
+
   /* Do the minimisation and get the value of the L parameter and the launch angle */
   double lvalueR=FindFunctionRoot(F3,0.0,UpperLimitL);
   double LangR=asin(lvalueR/A_ice_Cnz)*(180.0/pi);
@@ -1140,7 +1875,7 @@ double *GetReflectedRayPar_Cnz(double z0, double x1 , double z1, double A_ice_Cn
 
 /* This function returns the x and z values for the full Direct ray path in a TGraph and also prints out the ray path in a text file. This is for a constant refractive index. */
 void GetFullDirectRayPath_Cnz(double z0, double x1, double z1, double lvalueD, double A_ice_Cnz, vector <double> &x, vector <double> &z){
-
+  
   /* My raytracer can only work the Tx is below the Rx. If the Tx is higher than the Rx than we need to flip the depths to allow for raytracing and then we will flip them back later at the end */
   bool Flip=false;
   double dsw=z0;
@@ -1172,41 +1907,37 @@ void GetFullDirectRayPath_Cnz(double z0, double x1, double z1, double lvalueD, d
     xn=fDnfR_Cnz(zn,&params6a)-fDnfR_Cnz(z0,&params6b);
     checknan=fDnfR(zn,&params6a);
     if(isnan(checknan)==false && Flip==false){
-      aoutD<<npnt<<" "<<xn<<" "<<zn<<endl;;
       x.push_back(xn);
       z.push_back(zn);
+      aoutD<<npnt<<" "<<xn<<" "<<zn<<endl;;
       npnt++;
     }
 
     if(isnan(checknan)==false && Flip==true){
-      aoutD<<npnt<<" "<<x1-xn<<" "<<zn<<endl;;
       x.push_back(x1-xn);
       z.push_back(zn);
+      aoutD<<npnt<<" "<<x1-xn<<" "<<zn<<endl;;
       npnt++;
     }
 
     zn=zn-h;
     if(zn<z0){
       zn=z0;
-      i=dmax+2;      
+      i=dmax+2;
     }  
   }
 
+  params6a = {A_ice_Cnz, 0, 0, lvalueD};
+  params6b = {A_ice_Cnz, 0, 0, lvalueD};
+  xn=fDnfR_Cnz(zn,&params6a)-fDnfR_Cnz(z0,&params6b); 
   if(Flip==true){
-    params6a = {A_ice_Cnz, 0, 0, lvalueD};
-    params6b = {A_ice_Cnz, 0, 0, lvalueD};
-    xn=fDnfR_Cnz(zn,&params6a)-fDnfR_Cnz(z0,&params6b); 
     x.push_back(x1-xn);
     z.push_back(zn);
-    aoutD<<npnt<<" "<<x1-xn<<" "<<zn<<endl;;
   }else{
-    params6a = {A_ice_Cnz, 0, 0, lvalueD};
-    params6b = {A_ice_Cnz, 0, 0, lvalueD};
-    xn=fDnfR_Cnz(zn,&params6a)-fDnfR_Cnz(z0,&params6b);
     x.push_back(xn);
     z.push_back(zn);
-    aoutD<<npnt<<" "<<xn<<" "<<zn<<endl;;
   }
+  npnt++;
   
   dsw=0;
   /* If the Tx and Rx depth were switched then put them back to their original position */
@@ -1215,7 +1946,7 @@ void GetFullDirectRayPath_Cnz(double z0, double x1, double z1, double lvalueD, d
     z0=z1;
     z1=dsw;
   }
-
+  
 }
 
 /* This function returns the x and z values for the full Reflected ray path in a TGraph and also prints out the ray path in a text file. This is for a constant refractive index. */
@@ -1302,20 +2033,15 @@ void GetFullReflectedRayPath_Cnz(double z0, double x1, double z1, double lvalueR
     }
   }
 
+  params6a = {A_ice_Cnz, 0, 0, lvalueR};
+  params6b = {A_ice_Cnz, 0, 0, lvalueR};
+  xn=fDnfR_Cnz(zn,&params6a)-fDnfR_Cnz(z0,&params6b);
   if(Flip==true){
-    params6a = {A_ice_Cnz, 0, 0, lvalueR};
-    params6b = {A_ice_Cnz, 0, 0, lvalueR};
-    xn=fDnfR_Cnz(zn,&params6a)-fDnfR_Cnz(z0,&params6b); 
     x.push_back(x1-xn);
     z.push_back(zn);
-    aoutR<<npnt<<" "<<x1-xn<<" "<<zn<<endl;;
   }else{
-    params6a = {A_ice_Cnz, 0, 0, lvalueR};
-    params6b = {A_ice_Cnz, 0, 0, lvalueR};
-    xn=fDnfR_Cnz(zn,&params6a)-fDnfR_Cnz(z0,&params6b);
     x.push_back(xn);
     z.push_back(zn);
-    aoutR<<npnt<<" "<<xn<<" "<<zn<<endl;;
   }
   
   dsw=0;
@@ -1325,14 +2051,12 @@ void GetFullReflectedRayPath_Cnz(double z0, double x1, double z1, double lvalueR
     z0=z1;
     z1=dsw;
   }
- 
-  npnt++;
 
 }
 
 /* function for plotting and storing all the rays. This is for constant refractive index. */
 void PlotAndStoreRays_Cnz(double x0,double z0, double z1, double x1, double lvalues[2], double A_ice_Cnz){
-  
+
   double lvalueD=lvalues[0];
   double lvalueR=lvalues[1];
 
@@ -1340,7 +2064,7 @@ void PlotAndStoreRays_Cnz(double x0,double z0, double z1, double x1, double lval
   vector <double> xR,zR;
   GetFullDirectRayPath_Cnz(z0,x1,z1,lvalueD,A_ice_Cnz,xD,zD);
   GetFullReflectedRayPath_Cnz(z0,x1,z1,lvalueR,A_ice_Cnz,xR,zR);
-  
+
 }
 
 /* This is the main raytracing function. x0 always has to be zero. z0 is the Tx depth in m and z1 is the depth of the Rx in m. Both depths are negative. x1 is the distance between them. This functions works for a constant refractive index */
@@ -1350,7 +2074,7 @@ double *IceRayTracing_Cnz(double x0, double z0, double x1, double z1, double A_i
   double *output=new double[9];
 
   /* Store the ray paths in text files */
-  bool PlotRayPaths=false;
+  bool PlotRayPaths=true;
   
   /*  ********This part of the code will try to get the Direct ray between Rx and Tx.********** */
   double* GetDirectRay=GetDirectRayPar_Cnz(z0,x1,z1,A_ice_Cnz);
@@ -1394,7 +2118,6 @@ double *IceRayTracing_Cnz(double x0, double z0, double x1, double z1, double A_i
   output[6]=timeR1;
   output[7]=timeR2;
   output[8]=AngleOfIncidenceInIce;
-
   
   return output;
 }
@@ -1420,92 +2143,150 @@ int main(int argc, char ** argv){
 
   double TxCor[3]={atof(argv[1]),atof(argv[2]),atof(argv[3])};
   double RxCor[3]={atof(argv[4]),atof(argv[5]),atof(argv[6])};
+
   
-  /* An example for Direct and Reflected Rays */
+  ////For recording how much time the process took
+  auto t1b = std::chrono::high_resolution_clock::now();  
+  
+  ////An example for Direct and Reflected Rays
   // double TxCor[3]={0,0,-100};
   // double RxCor[3]={0,100,-5};
 
-  /* An example for Direct and Refracted Rays */
+  ////An example for Direct and Refracted Rays
   // double TxCor[3]={0,0,-67.5489};
   // double RxCor[3]={0,1338.3,-800};
- 
-  /* For recording how much time the process took */
-  auto t1b = std::chrono::high_resolution_clock::now();
   
-  double x0=0;
+  double x0=0;/////always has to be zero
   double z0=TxCor[2];
   double x1=sqrt(pow(TxCor[0]-RxCor[0],2)+pow(TxCor[1]-RxCor[1],2));
   double z1=RxCor[2];
 
   double * getresults=IceRayTracing(x0,z0,x1,z1);
 
-  cout<<" "<<endl;
-  cout<<"x0="<<x0<<" m , z0="<<z0<<" m ,x1="<<x1<<" m ,z1="<<z1<<" m "<<endl;
-  if(getresults[6]!=-1000 && getresults[7]!=-1000 && getresults[8]!=-1000){
-    cout<<"No Possible Ray Paths between Tx and Rx!!! :("<<endl;
-  }
+  cout<<"*******For the Direct Ray********"<<endl;
+  cout<<"Launch Angle: "<<getresults[0]<<" deg"<<endl;
+  cout<<"Recieve Angle: "<<getresults[8]<<" deg"<<endl;
+  cout<<"Propogation Time: "<<getresults[4]*pow(10,9)<<" ns"<<endl;
+  cout<<"*******For the Refracted[1] Ray********"<<endl;
+  cout<<"Launch Angle: "<<getresults[2]<<" deg"<<endl;
+  cout<<"Recieve Angle: "<<getresults[10]<<" deg"<<endl;
+  cout<<"Propogation Time: "<<getresults[6]*pow(10,9)<<" ns"<<endl;
+  cout<<"*******For the Refracted[2] Ray********"<<endl;
+  cout<<"Launch Angle: "<<getresults[3]<<" deg"<<endl;
+  cout<<"Recieve Angle: "<<getresults[11]<<" deg"<<endl;
+  cout<<"Propogation Time: "<<getresults[7]*pow(10,9)<<" ns"<<endl;
+  cout<<"*******For the Reflected Ray********"<<endl;
+  cout<<"Launch Angle: "<<getresults[1]<<" deg"<<endl;
+  cout<<"Recieve Angle: "<<getresults[9]<<" deg"<<endl;
+  cout<<"Propogation Time: "<<getresults[5]*pow(10,9)<<" ns"<<endl;   
+  cout<<"Incident Angle in Ice on the Surface: "<<getresults[18]<<" deg"<<endl;
   
-  if(getresults[6]!=-1000 && getresults[8]!=-1000){ 
-    cout<<"Direct and Refracted: dt(D,R)="<<(getresults[5]-getresults[3])*pow(10,9)<<" ns"<<endl;
+  cout<<" "<<endl;
+  if(getresults[8]!=-1000 && getresults[10]!=-1000){ 
+    cout<<"x0="<<x0<<" m , z0="<<z0<<" m ,x1="<<x1<<" m ,z1="<<z1<<" m "<<endl;
+    cout<<"Direct and Refracted[1]: dt(D,R)="<<(getresults[6]-getresults[4])*pow(10,9)<<" ns"<<endl;
     cout<<"*******For the Direct Ray********"<<endl;
     cout<<"Launch Angle: "<<getresults[0]<<" deg"<<endl;
-    cout<<"Recieve Angle: "<<getresults[6]<<" deg"<<endl;
-    cout<<"Propogation Time: "<<getresults[3]*pow(10,9)<<" ns"<<endl;
-    cout<<"*******For the Refracted Ray********"<<endl;
-    cout<<"Launch Angle: "<<getresults[2]<<" deg"<<endl;
     cout<<"Recieve Angle: "<<getresults[8]<<" deg"<<endl;
-    cout<<"Propogation Time: "<<getresults[5]*pow(10,9)<<" ns"<<endl;
-  }
-      
-  if(getresults[6]!=-1000 && getresults[7]!=-1000){
-    cout<<"Direct and Reflected: dt(D,R)="<<(getresults[4]-getresults[3])*pow(10,9)<<" ns"<<endl;
-    cout<<"*******For the Direct Ray********"<<endl;
-    cout<<"Launch Angle: "<<getresults[0]<<" deg"<<endl;
-    cout<<"Recieve Angle: "<<getresults[6]<<" deg"<<endl;
-    cout<<"Propogation Time: "<<getresults[3]*pow(10,9)<<" ns"<<endl;
-    cout<<"*******For the Reflected Ray********"<<endl;
-    cout<<"Launch Angle: "<<getresults[1]<<" deg"<<endl;
-    cout<<"Recieve Angle: "<<getresults[7]<<" deg"<<endl;
-    cout<<"Propogation Time: "<<getresults[4]*pow(10,9)<<" ns"<<endl;   
-    cout<<"Incident Angle in Ice on the Surface: "<<getresults[11]<<" deg"<<endl;
-  }
-      
-  if(getresults[8]!=-1000 && getresults[7]!=-1000){
-    cout<<"Refracted and Reflected: dt(D,R)="<<(getresults[4]-getresults[5])*pow(10,9)<<" ns "<<endl;
-    cout<<"*******For the Reflected Ray********"<<endl;
-    cout<<"Launch Angle: "<<getresults[1]<<" deg"<<endl;
-    cout<<"Recieve Angle: "<<getresults[7]<<" deg"<<endl;
     cout<<"Propogation Time: "<<getresults[4]*pow(10,9)<<" ns"<<endl;
     cout<<"*******For the Refracted Ray********"<<endl;
     cout<<"Launch Angle: "<<getresults[2]<<" deg"<<endl;
-    cout<<"Recieve Angle: "<<getresults[8]<<" deg"<<endl;
-    cout<<"Propogation Time: "<<getresults[5]*pow(10,9)<<" ns"<<endl;
+    cout<<"Recieve Angle: "<<getresults[10]<<" deg"<<endl;
+    cout<<"Propogation Time: "<<getresults[6]*pow(10,9)<<" ns"<<endl;
   }
-  
-  delete []getresults;  
 
-  double * getresults2=IceRayTracing_Cnz(x0,z0,x1,z1,1.7);
+  if(getresults[8]!=-1000 && getresults[11]!=-1000){ 
+    cout<<"x0="<<x0<<" m , z0="<<z0<<" m ,x1="<<x1<<" m ,z1="<<z1<<" m "<<endl;
+    cout<<"Direct and Refracted[2]: dt(D,R)="<<(getresults[7]-getresults[4])*pow(10,9)<<" ns"<<endl;
+    cout<<"*******For the Direct Ray********"<<endl;
+    cout<<"Launch Angle: "<<getresults[0]<<" deg"<<endl;
+    cout<<"Recieve Angle: "<<getresults[8]<<" deg"<<endl;
+    cout<<"Propogation Time: "<<getresults[4]*pow(10,9)<<" ns"<<endl;
+    cout<<"*******For the Refracted Ray********"<<endl;
+    cout<<"Launch Angle: "<<getresults[3]<<" deg"<<endl;
+    cout<<"Recieve Angle: "<<getresults[11]<<" deg"<<endl;
+    cout<<"Propogation Time: "<<getresults[7]*pow(10,9)<<" ns"<<endl;
+  }
+      
+  if(getresults[8]!=-1000 && getresults[9]!=-1000){
+    cout<<"x0="<<x0<<" m , z0="<<z0<<" m ,x1="<<x1<<" m ,z1="<<z1<<" m "<<endl;
+    cout<<"Direct and Reflected: dt(D,R)="<<(getresults[5]-getresults[4])*pow(10,9)<<" ns"<<endl;
+    cout<<"*******For the Direct Ray********"<<endl;
+    cout<<"Launch Angle: "<<getresults[0]<<" deg"<<endl;
+    cout<<"Recieve Angle: "<<getresults[8]<<" deg"<<endl;
+    cout<<"Propogation Time: "<<getresults[4]*pow(10,9)<<" ns"<<endl;
+    cout<<"*******For the Reflected Ray********"<<endl;
+    cout<<"Launch Angle: "<<getresults[1]<<" deg"<<endl;
+    cout<<"Recieve Angle: "<<getresults[9]<<" deg"<<endl;
+    cout<<"Propogation Time: "<<getresults[5]*pow(10,9)<<" ns"<<endl;   
+    cout<<"Incident Angle in Ice on the Surface: "<<getresults[18]<<" deg"<<endl;
+  }
+      
+  if(getresults[10]!=-1000 && getresults[9]!=-1000){
+    cout<<"x0="<<x0<<" m , z0="<<z0<<" m ,x1="<<x1<<" m ,z1="<<z1<<" m "<<endl;
+    cout<<"Refracted[1] and Reflected: dt(D,R)="<<(getresults[5]-getresults[6])*pow(10,9)<<" ns "<<endl;
+    cout<<"*******For the Reflected Ray********"<<endl;
+    cout<<"Launch Angle: "<<getresults[1]<<" deg"<<endl;
+    cout<<"Recieve Angle: "<<getresults[9]<<" deg"<<endl;
+    cout<<"Propogation Time: "<<getresults[5]*pow(10,9)<<" ns"<<endl;
+    cout<<"Incident Angle on Ice Surface: "<<getresults[18]<<" deg"<<endl;
+    cout<<"*******For the Refracted Ray********"<<endl;
+    cout<<"Launch Angle: "<<getresults[2]<<" deg"<<endl;
+    cout<<"Recieve Angle: "<<getresults[10]<<" deg"<<endl;
+    cout<<"Propogation Time: "<<getresults[6]*pow(10,9)<<" ns"<<endl;
+  }
 
-  cout<<" "<<endl;
-  cout<<" For constant refractive index"<<endl;
-  cout<<"Direct and Reflected: dt(D,R)="<<(getresults2[3]-getresults2[2])*pow(10,9)<<" ns"<<endl;
-  cout<<"*******For the Direct Ray********"<<endl;
-  cout<<"Launch Angle: "<<getresults2[0]<<" deg"<<endl;
-  cout<<"Recieve Angle: "<<getresults2[4]<<" deg"<<endl;
-  cout<<"Propogation Time: "<<getresults2[2]*pow(10,9)<<" ns"<<endl;
-  cout<<"*******For the Reflected Ray********"<<endl;
-  cout<<"Launch Angle: "<<getresults2[1]<<" deg"<<endl;
-  cout<<"Recieve Angle: "<<getresults2[5]<<" deg"<<endl;
-  cout<<"Propogation Time: "<<getresults2[3]*pow(10,9)<<" ns"<<endl;
-  cout<<"Incident Angle in Ice on the Surface: "<<getresults2[8]<<" deg"<<endl;
-
-  delete []getresults2; 
+  if(getresults[11]!=-1000 && getresults[9]!=-1000){
+    cout<<"x0="<<x0<<" m , z0="<<z0<<" m ,x1="<<x1<<" m ,z1="<<z1<<" m "<<endl;
+    cout<<"Refracted[2] and Reflected: dt(D,R)="<<(getresults[5]-getresults[7])*pow(10,9)<<" ns "<<endl;
+    cout<<"*******For the Reflected Ray********"<<endl;
+    cout<<"Launch Angle: "<<getresults[1]<<" deg"<<endl;
+    cout<<"Recieve Angle: "<<getresults[9]<<" deg"<<endl;
+    cout<<"Propogation Time: "<<getresults[5]*pow(10,9)<<" ns"<<endl;
+    cout<<"Incident Angle on Ice Surface: "<<getresults[18]<<" deg"<<endl;
+    cout<<"*******For the Refracted Ray********"<<endl;
+    cout<<"Launch Angle: "<<getresults[3]<<" deg"<<endl;
+    cout<<"Recieve Angle: "<<getresults[11]<<" deg"<<endl;
+    cout<<"Propogation Time: "<<getresults[7]*pow(10,9)<<" ns"<<endl;
+  }
  
+  if(getresults[10]!=-1000 && getresults[11]!=-1000){
+    cout<<"x0="<<x0<<" m , z0="<<z0<<" m ,x1="<<x1<<" m ,z1="<<z1<<" m "<<endl;
+    cout<<"Refracted[1] and Refracted[2]: dt(D,R)="<<(getresults[6]-getresults[7])*pow(10,9)<<" ns "<<endl;
+    cout<<"*******For the Refracted[1] Ray********"<<endl;
+    cout<<"Launch Angle: "<<getresults[2]<<" deg"<<endl;
+    cout<<"Recieve Angle: "<<getresults[10]<<" deg"<<endl;
+    cout<<"Propogation Time: "<<getresults[6]*pow(10,9)<<" ns"<<endl;
+    cout<<"*******For the Refracted[2] Ray********"<<endl;
+    cout<<"Launch Angle: "<<getresults[3]<<" deg"<<endl;
+    cout<<"Recieve Angle: "<<getresults[11]<<" deg"<<endl;
+    cout<<"Propogation Time: "<<getresults[7]*pow(10,9)<<" ns"<<endl;
+  }
+
+  delete []getresults;
+  
+  // double * getresults2=IceRayTracing_Cnz(x0,z0,x1,z1,1.4);
+
+  // cout<<" "<<endl;
+  // cout<<" For constant refractive index"<<endl;
+  // cout<<"Direct and Reflected: dt(D,R)="<<(getresults2[3]-getresults2[2])*pow(10,9)<<" ns"<<endl;
+  // cout<<"*******For the Direct Ray********"<<endl;
+  // cout<<"Launch Angle: "<<getresults2[0]<<" deg"<<endl;
+  // cout<<"Recieve Angle: "<<getresults2[4]<<" deg"<<endl;
+  // cout<<"Propogation Time: "<<getresults2[2]*pow(10,9)<<" ns"<<endl;
+  // cout<<"*******For the Reflected Ray********"<<endl;
+  // cout<<"Launch Angle: "<<getresults2[1]<<" deg"<<endl;
+  // cout<<"Recieve Angle: "<<getresults2[5]<<" deg"<<endl;
+  // cout<<"Propogation Time: "<<getresults2[3]*pow(10,9)<<" ns"<<endl;
+  // cout<<"Incident Angle in Ice on the Surface: "<<getresults2[8]<<" deg"<<endl;
+
+  // delete []getresults2; 
+  
   auto t2b = std::chrono::high_resolution_clock::now();
   double durationb = std::chrono::duration_cast<std::chrono::microseconds>( t2b - t1b ).count();
 
   double Duration=durationb/1000;
-  cout<<"total time taken by the script: "<<Duration<<" ms"<<endl;
+  cout<<"total time taken by the script: "<<Duration<<" ms"<<endl; 
 
   return 0;
 }

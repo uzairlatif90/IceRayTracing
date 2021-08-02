@@ -5,10 +5,6 @@
 #include <string>
 #include <algorithm>
 #include <chrono>
-#include <gsl/gsl_errno.h>
-#include <gsl/gsl_math.h>
-#include <gsl/gsl_roots.h>
-#include <gsl/gsl_deriv.h>
 #include <sys/time.h>
 
 #include "TGraph.h"
@@ -16,6 +12,12 @@
 #include "TCanvas.h"
 #include "TAxis.h"
 #include "TVector3.h"
+
+#include <gsl/gsl_errno.h>
+#include <gsl/gsl_math.h>
+#include <gsl/gsl_roots.h>
+#include <gsl/gsl_deriv.h>
+#include <gsl/gsl_integration.h>
 
 using namespace std;
 
@@ -66,6 +68,43 @@ double Getnz(double z){
   return A_ice+GetB(z)*exp(-GetC(z)*z);
 }
 
+/* E-feild Power Fresnel coefficient for S-polarised wave which is perpendicular to the plane of propogation/incidence. This function gives you back the reflectance. The transmittance is T=1-R */
+double Refl_S(double thetai){
+
+  double Nair=1;
+  double Nice=Getnz(0); 
+  double n1=Nice;
+  double n2=Nair;
+  
+  double sqterm=sqrt(1-pow((n1/n2)*(sin(thetai)),2));
+  double num=n1*cos(thetai)-n2*sqterm;
+  double den=n1*cos(thetai)+n2*sqterm;
+  double RS=(num*num)/(den*den);
+
+  if(std::isnan(RS)){
+    RS=1;
+  }
+  return (RS);
+}
+
+/* E-feild Power Fresnel coefficient for P-polarised wave which is parallel to the plane of propogation/incidence. This function gives you back the reflectance. The transmittance is T=1-R */
+double Refl_P(double thetai){
+   
+  double Nair=1;
+  double Nice=Getnz(0); 
+  double n1=Nice;
+  double n2=Nair;
+
+  double sqterm=sqrt(1-pow((n1/n2)*(sin(thetai)),2));
+  double num=n1*sqterm-n2*cos(thetai);
+  double den=n1*sqterm+n2*cos(thetai);
+  double RP=(num*num)/(den*den);
+  if(std::isnan(RP)){
+    RP=1;
+  }
+  return (RP);
+}
+
 /* The temperature and attenuation model has been taken from AraSim which also took it from here http://icecube.wisc.edu/~araproject/radio/ . This is basically Matt Newcomb's icecube directory which has alot of information, plots and codes about South Pole Ice activities. Please read it if you find it interesting. */
 
 /* Temperature model:The model takes in value of depth z in m and returns the value of temperature in Celsius.*/
@@ -95,6 +134,62 @@ double GetIceAttenuationLength(double z, double frequency){
   }
   double Lval=1./exp(a+bb*w);
   return Lval;
+}
+
+/* Setup the integrand to calculate the attenuation */
+double AttenuationIntegrand (double x, void * params) {
+
+  double *p=(double*)params;
+
+  double A0=p[0];
+  double Frequency=p[1];
+  double L=p[2];
+
+  double Integrand=(A0/GetIceAttenuationLength(x,Frequency))*sqrt(1+pow(tan(asin(L/Getnz(x))) ,2));
+  return Integrand;
+}
+
+/* Integrate over the integrand to calculate the attenuation */
+double IntegrateOverLAttn (double A0, double Frequency, double z0, double z1, double Lvalue) {
+  gsl_integration_workspace * w= gsl_integration_workspace_alloc (1000);
+
+  double result, error;
+  double zlimit[2] = {z0,z1};
+  double param[3] = {A0,Frequency,Lvalue};
+  
+  gsl_function F;
+  F.function = &AttenuationIntegrand;
+  F.params = &param;
+
+  gsl_integration_qags (&F, zlimit[0], zlimit[1], 0, 1e-7, 1000,
+                        w, &result, &error);
+
+  // printf ("result          = % .18f\n", result);
+  // printf ("estimated error = % .18f\n", error);
+  // printf ("intervals       = %zu\n", w->size);
+
+  gsl_integration_workspace_free (w);  
+
+  return fabs(result);
+}
+
+/* Calculate the total attenuation for each type of ray */
+double GetTotalAttenuationDirect (double A0, double frequency, double z0, double z1, double Lvalue) {
+  z0=fabs(z0);
+  z1=fabs(z1);
+  return IntegrateOverLAttn(A0,frequency,z0,z1,Lvalue);
+}
+
+double GetTotalAttenuationReflected (double A0, double frequency, double z0, double z1, double Lvalue) {
+  z0=fabs(z0);
+  z1=fabs(z1);
+  return IntegrateOverLAttn(A0,frequency,z0,0.000001,Lvalue) + IntegrateOverLAttn(A0,frequency,z1,0.000001,Lvalue);
+}
+
+double GetTotalAttenuationRefracted (double A0, double frequency, double z0, double z1, double zmax, double Lvalue) {
+  z0=fabs(z0);
+  z1=fabs(z1);
+  return IntegrateOverLAttn(A0,frequency,z0,zmax,Lvalue) + IntegrateOverLAttn(A0,frequency,z1,zmax,Lvalue);
 }
 
 /* Use GSL minimiser which relies on calculating function deriavtives. This function uses GSL's Newton's algorithm to find root for a given function. */
@@ -1051,16 +1146,15 @@ TGraph* GetFullDirectRayPath(double z0, double x1, double z1,double lvalueD){
     }  
   }
 
+  params6a = {A_ice, GetB(zn), GetC(zn), lvalueD};
+  params6b = {A_ice, GetB(z0), GetC(z0), lvalueD};
+  xn=fDnfR(zn,&params6a)-fDnfR(z0,&params6b);  
   if(Flip==true){
-    params6a = {A_ice, GetB(zn), GetC(zn), lvalueD};
-    params6b = {A_ice, GetB(z0), GetC(z0), lvalueD};
-    xn=fDnfR(zn,&params6a)-fDnfR(z0,&params6b); 
     gr1->SetPoint(npnt,x1-xn,z0);
+    aoutD<<npnt<<" "<<x1-xn<<" "<<zn<<endl;;
   }else{
-    params6a = {A_ice, GetB(zn), GetC(zn), lvalueD};
-    params6b = {A_ice, GetB(z0), GetC(z0), lvalueD};
-    xn=fDnfR(zn,&params6a)-fDnfR(z0,&params6b);
     gr1->SetPoint(npnt,xn,z0);
+    aoutD<<npnt<<" "<<xn<<" "<<zn<<endl;;
   }
   
   dsw=0;
@@ -1221,12 +1315,13 @@ TGraph* GetFullReflectedRayPath(double z0, double x1, double z1,double lvalueR){
 
   params6a = {A_ice, GetB(zn), GetC(zn), lvalueR};
   params6b = {A_ice, GetB(z0), GetC(z0), lvalueR};
+  xn=fDnfR(zn,&params6a) -fDnfR(z0,&params6b);
   if(Flip==true){
-    xn=fDnfR(zn,&params6a) -fDnfR(z0,&params6b);
     gr2->SetPoint(npnt,x1-xn,zn);
+    aoutR<<npnt<<" "<<x1-xn<<" "<<zn<<endl;
   }else{
-    xn=fDnfR(zn,&params6a) - fDnfR(z0,&params6b);
     gr2->SetPoint(npnt,xn,zn);
+    aoutR<<npnt<<" "<<xn<<" "<<zn<<endl;
   }
   
   dsw=0;
@@ -1242,7 +1337,7 @@ TGraph* GetFullReflectedRayPath(double z0, double x1, double z1,double lvalueR){
 }
 
 /* This function returns the x and z values for the full Refracted ray path in a TGraph and also prints out the ray path in a text file */
-TGraph* GetFullRefractedRayPath(double z0, double x1, double z1, double zmax, double lvalueRa){
+TGraph* GetFullRefractedRayPath(double z0, double x1, double z1, double zmax, double lvalueRa, int raynumber){
 
   /* My raytracer can only work the Tx is below the Rx. If the Tx is higher than the Rx than we need to flip the depths to allow for raytracing and then we will flip them back later at the end */
   bool Flip=false;
@@ -1254,7 +1349,14 @@ TGraph* GetFullRefractedRayPath(double z0, double x1, double z1, double zmax, do
   }
   
   /* Set the name of the text files */
-  ofstream aoutRa("RefractedRay.txt");
+  ofstream aoutRa;
+  /* Set the name of the text files */
+  if(raynumber==1){
+    aoutRa.open("RefractedRay1.txt");
+  }
+  if(raynumber==2){
+    aoutRa.open("RefractedRay2.txt");
+  }
   /* Set the step size for plotting. */
   double h=0.1;
   /* Set the total steps required for looping over the whole ray path */
@@ -1391,14 +1493,14 @@ TGraph* GetFullRefractedRayPath(double z0, double x1, double z1, double zmax, do
   }
 
   params6a = {A_ice, GetB(zn), GetC(zn), lvalueRa};
-  params6b = {A_ice, GetB(z0), GetC(z0), lvalueRa};
-  
+  params6b = {A_ice, GetB(z0), GetC(z0), lvalueRa};  
+  xn=fDnfR(zn,&params6a)-fDnfR(z0,&params6b);
   if(Flip==true){
-    xn=fDnfR(zn,&params6a)-fDnfR(z0,&params6b); 
     gr3->SetPoint(npnt,x1-xn,z0);
+    aoutRa<<npnt<<" "<<x1-xn<<" "<<zn<<endl;
   }else{
-    xn=fDnfR(zn,&params6a)-fDnfR(z0,&params6b);
     gr3->SetPoint(npnt,xn,z0);
+    aoutRa<<npnt<<" "<<xn<<" "<<zn<<endl;
   }  
   
   dsw=0;
@@ -1431,13 +1533,11 @@ void PlotAndStoreRays(double x0,double z0, double z1, double x1, double zmax[2],
   TGraph *gr3A=new TGraph();
   TGraph *gr3B=new TGraph();
   
-  if((fabs(checkzeroR)>0.5 || fabs(checkzeroD)>0.5) && fabs(checkzeroRa[0])<0.5){
-  
-    gr3A=GetFullRefractedRayPath(z0,x1,z1,zmax[0],lvalueRa[0]);
-  }
-  if((fabs(checkzeroR)>0.5 || fabs(checkzeroD)>0.5) && fabs(checkzeroRa[1])<0.5){
- 
-    gr3B=GetFullRefractedRayPath(z0,x1,z1,zmax[1],lvalueRa[1]);
+  if((fabs(checkzeroR)>0.5 || fabs(checkzeroD)>0.5) && fabs(checkzeroRa[0])<0.5){  
+    gr3A=GetFullRefractedRayPath(z0,x1,z1,zmax[0],lvalueRa[0],1);
+    if(fabs(checkzeroRa[1])<0.5){ 
+      gr3B=GetFullRefractedRayPath(z0,x1,z1,zmax[1],lvalueRa[1],2);
+    }
   }
 
   gr1->SetMarkerColor(kBlue);
@@ -1596,9 +1696,9 @@ double *IceRayTracing(double x0, double z0, double x1, double z1){
   }
   
   /* print out all the output from the code */
-  cout<<0<<" ,x0= "<<x0<<" ,z0= "<<z0<<" ,x1= "<<x1<<" ,z1= "<<z1<<" ,langRa= "<<LangRa[0]<<" ,langR= "<<LangR<<" ,langD= "<<LangD<<" ,langD-langR= "<<LangD-LangR<<" ,langD-langRa= "<<LangD-LangRa[0]<<" ,RangRa= "<<RangRa[0]<<" ,RangR= "<<RangR<<" ,RangD= "<<RangD<<" ,RangR-RangD= "<<RangR-RangD<<" ,RangRa-RangD= "<<RangRa[0]-RangD<<" ,timeRa= "<<timeRa[0]<<" ,timeR= "<<timeRa[0]<<" ,timeD= "<<timeD<<" ,timeR-timeD= "<<timeR-timeD<<" ,timeRa-timeD= "<<timeRa[0]-timeD<<" ,lvalueRa "<<lvalueRa<<" ,lvalueR "<<lvalueR<<" "<<" ,lvalueD "<<lvalueD<<" ,checkzeroRa "<<checkzeroRa[0]<<" ,checkzeroR "<<checkzeroR<<" ,checkzeroD "<<checkzeroD<<endl;
+  //cout<<0<<" ,x0= "<<x0<<" ,z0= "<<z0<<" ,x1= "<<x1<<" ,z1= "<<z1<<" ,langRa= "<<LangRa[0]<<" ,langR= "<<LangR<<" ,langD= "<<LangD<<" ,langD-langR= "<<LangD-LangR<<" ,langD-langRa= "<<LangD-LangRa[0]<<" ,RangRa= "<<RangRa[0]<<" ,RangR= "<<RangR<<" ,RangD= "<<RangD<<" ,RangR-RangD= "<<RangR-RangD<<" ,RangRa-RangD= "<<RangRa[0]-RangD<<" ,timeRa= "<<timeRa[0]<<" ,timeR= "<<timeRa[0]<<" ,timeD= "<<timeD<<" ,timeR-timeD= "<<timeR-timeD<<" ,timeRa-timeD= "<<timeRa[0]-timeD<<" ,lvalueRa "<<lvalueRa[0]<<" ,lvalueR "<<lvalueR<<" "<<" ,lvalueD "<<lvalueD<<" ,checkzeroRa "<<checkzeroRa[0]<<" ,checkzeroR "<<checkzeroR<<" ,checkzeroD "<<checkzeroD<<endl;
 
-  cout<<0<<" ,x0= "<<x0<<" ,z0= "<<z0<<" ,x1= "<<x1<<" ,z1= "<<z1<<" ,langRa= "<<LangRa[1]<<" ,langR= "<<LangR<<" ,langD= "<<LangD<<" ,langD-langR= "<<LangD-LangR<<" ,langD-langRa= "<<LangD-LangRa[1]<<" ,RangRa= "<<RangRa[1]<<" ,RangR= "<<RangR<<" ,RangD= "<<RangD<<" ,RangR-RangD= "<<RangR-RangD<<" ,RangRa-RangD= "<<RangRa[1]-RangD<<" ,timeRa= "<<timeRa[1]<<" ,timeR= "<<timeRa[1]<<" ,timeD= "<<timeD<<" ,timeR-timeD= "<<timeR-timeD<<" ,timeRa-timeD= "<<timeRa[1]-timeD<<" ,lvalueRa "<<lvalueRa<<" ,lvalueR "<<lvalueR<<" "<<" ,lvalueD "<<lvalueD<<" ,checkzeroRa "<<checkzeroRa[1]<<" ,checkzeroR "<<checkzeroR<<" ,checkzeroD "<<checkzeroD<<endl;
+  //cout<<0<<" ,x0= "<<x0<<" ,z0= "<<z0<<" ,x1= "<<x1<<" ,z1= "<<z1<<" ,langRa= "<<LangRa[1]<<" ,langR= "<<LangR<<" ,langD= "<<LangD<<" ,langD-langR= "<<LangD-LangR<<" ,langD-langRa= "<<LangD-LangRa[1]<<" ,RangRa= "<<RangRa[1]<<" ,RangR= "<<RangR<<" ,RangD= "<<RangD<<" ,RangR-RangD= "<<RangR-RangD<<" ,RangRa-RangD= "<<RangRa[1]-RangD<<" ,timeRa= "<<timeRa[1]<<" ,timeR= "<<timeRa[1]<<" ,timeD= "<<timeD<<" ,timeR-timeD= "<<timeR-timeD<<" ,timeRa-timeD= "<<timeRa[1]-timeD<<" ,lvalueRa "<<lvalueRa[1]<<" ,lvalueR "<<lvalueR<<" "<<" ,lvalueD "<<lvalueD<<" ,checkzeroRa "<<checkzeroRa[1]<<" ,checkzeroR "<<checkzeroR<<" ,checkzeroD "<<checkzeroD<<endl;
 
   /* Fill in the output pointer after calculating all the results */
   output[0]=LangD;
@@ -1851,7 +1951,7 @@ TGraph* GetFullDirectRayPath_Cnz(double z0, double x1, double z1, double lvalueD
   }
    
   /* Set the name of the text files */
-  //ofstream aoutD("DirectRay.txt");
+  ofstream aoutD("DirectRay_Cnz.txt");
   /* Set the step size for plotting */
   double h=0.1;
   /* Set the total steps required for looping over the whole ray path */
@@ -1874,13 +1974,13 @@ TGraph* GetFullDirectRayPath_Cnz(double z0, double x1, double z1, double lvalueD
     checknan=fDnfR(zn,&params6a);
     if(isnan(checknan)==false && Flip==false){
       gr1->SetPoint(npnt,xn,zn);
-      //aoutD<<npnt<<" "<<xn<<" "<<zn<<endl;;
+      aoutD<<npnt<<" "<<xn<<" "<<zn<<endl;;
       npnt++;
     }
 
     if(isnan(checknan)==false && Flip==true){
       gr1->SetPoint(npnt,x1-xn,zn);
-      //aoutD<<npnt<<" "<<x1-xn<<" "<<zn<<endl;;
+      aoutD<<npnt<<" "<<x1-xn<<" "<<zn<<endl;;
       npnt++;
     }
 
@@ -1891,16 +1991,15 @@ TGraph* GetFullDirectRayPath_Cnz(double z0, double x1, double z1, double lvalueD
     }  
   }
 
+  params6a = {A_ice_Cnz, 0, 0, lvalueD};
+  params6b = {A_ice_Cnz, 0, 0, lvalueD};
+  xn=fDnfR_Cnz(zn,&params6a)-fDnfR_Cnz(z0,&params6b); 
   if(Flip==true){
-    params6a = {A_ice_Cnz, 0, 0, lvalueD};
-    params6b = {A_ice_Cnz, 0, 0, lvalueD};
-    xn=fDnfR_Cnz(zn,&params6a)-fDnfR_Cnz(z0,&params6b); 
     gr1->SetPoint(npnt,x1-xn,z0);
+    aoutD<<npnt<<" "<<x1-xn<<" "<<zn<<endl;;
   }else{
-    params6a = {A_ice_Cnz, 0, 0, lvalueD};
-    params6b = {A_ice_Cnz, 0, 0, lvalueD};
-    xn=fDnfR_Cnz(zn,&params6a)-fDnfR_Cnz(z0,&params6b);
     gr1->SetPoint(npnt,xn,z0);
+    aoutD<<npnt<<" "<<xn<<" "<<zn<<endl;;
   }
   npnt++;
   
@@ -1928,7 +2027,7 @@ TGraph* GetFullReflectedRayPath_Cnz(double z0, double x1, double z1, double lval
   }
   
   // /* Set the name of the text files */
-  // ofstream aoutR("ReflectedRay.txt");
+  ofstream aoutR("ReflectedRay_Cnz.txt");
   /* Set the step size for plotting. */
   double h=0.1;
   /* Set the total steps required for looping over the whole ray path */
@@ -1954,13 +2053,13 @@ TGraph* GetFullReflectedRayPath_Cnz(double z0, double x1, double z1, double lval
     checknan=fDnfR_Cnz(-zn,&params6a);
     if(isnan(checknan)==false && zn<=0 && Flip==false){
       gr2->SetPoint(npnt,xn,zn);
-      //aoutR<<npnt<<" "<<xn<<" "<<zn<<endl;
+      aoutR<<npnt<<" "<<xn<<" "<<zn<<endl;
       npnt++;
     }
 
     if(isnan(checknan)==false && zn<=0 && Flip==true){
       gr2->SetPoint(npnt,x1-xn,zn);
-      //aoutR<<npnt<<" "<<x1-xn<<" "<<zn<<endl;
+      aoutR<<npnt<<" "<<x1-xn<<" "<<zn<<endl;
       npnt++;
     }
       
@@ -1979,13 +2078,13 @@ TGraph* GetFullReflectedRayPath_Cnz(double z0, double x1, double z1, double lval
     checknan=fDnfR_Cnz(zn,&params6a);
     if(isnan(checknan)==false && Flip==false){
       gr2->SetPoint(npnt,xn,zn);
-      //aoutR<<npnt<<" "<<xn<<" "<<zn<<endl;
+      aoutR<<npnt<<" "<<xn<<" "<<zn<<endl;
       npnt++;
     }
       
     if(isnan(checknan)==false && Flip==true){
       gr2->SetPoint(npnt,x1-xn,zn);
-      //aoutR<<npnt<<" "<<x1-xn<<" "<<zn<<endl;
+      aoutR<<npnt<<" "<<x1-xn<<" "<<zn<<endl;
       npnt++;
     }
 
@@ -1995,17 +2094,16 @@ TGraph* GetFullReflectedRayPath_Cnz(double z0, double x1, double z1, double lval
       i=dmax+2;
     }
   }
-  
+
+  params6a = {A_ice_Cnz, 0, 0, lvalueR};
+  params6b = {A_ice_Cnz, 0, 0, lvalueR};
+  xn=fDnfR_Cnz(zn,&params6a)-fDnfR_Cnz(z0,&params6b);
   if(Flip==true){
-    params6a = {A_ice_Cnz, 0, 0, lvalueR};
-    params6b = {A_ice_Cnz, 0, 0, lvalueR};
-    xn=fDnfR_Cnz(zn,&params6a)-fDnfR_Cnz(z0,&params6b);
     gr2->SetPoint(npnt,x1-xn,zn);
+    aoutR<<npnt<<" "<<x1-xn<<" "<<zn<<endl;
   }else{
-    params6a = {A_ice_Cnz, 0, 0, lvalueR};
-    params6b = {A_ice_Cnz, 0, 0, lvalueR};
-    xn=fDnfR_Cnz(zn,&params6a)-fDnfR_Cnz(z0,&params6b);
     gr2->SetPoint(npnt,xn,zn);
+    aoutR<<npnt<<" "<<xn<<" "<<zn<<endl;
   }
   
   dsw=0;
@@ -2094,7 +2192,7 @@ double *IceRayTracing_Cnz(double x0, double z0, double x1, double z1, double A_i
   double *output=new double[9];
 
   /* Store the ray paths in text files */
-  bool PlotRayPaths=true;
+  bool PlotRayPaths=false;
   
   /*  ********This part of the code will try to get the Direct ray between Rx and Tx.********** */
   double* GetDirectRay=GetDirectRayPar_Cnz(z0,x1,z1,A_ice_Cnz);
@@ -2283,37 +2381,12 @@ void IceRayTracing_wROOTplot(double xTx, double yTx, double zTx, double xRx, dou
   // cout<<"Incident Angle in Ice on the Surface: "<<getresults2[8]<<" deg"<<endl;
 
   // delete []getresults2; 
-
-  // gsl_function F4;
-  // struct fDanfRa_params params4= {A_ice, z0, x1, z1};
-  // F4.function = &fRaa;
-  // F4.params = &params4;
-  // getresults[1]=getresults[1]-20;
- 
-  // double stepsize=Getnz(z0)*(1-sin((getresults[1]*(pi/180.0))))/500;
-
-  // cout<<"here getresults is "<<getresults[1]<<" "<<stepsize<<endl;
   
-  // TGraph *gr=new TGraph();
-  // for(int i=0;i<500;i++){
-  //   double lvalueRa=Getnz(z0)*sin((getresults[1]*(pi/180.0)))+i*stepsize;
-  //   double result,abserr;
-  //   gsl_deriv_central (&F4, lvalueRa, 1e-8, &result, &abserr);
-    
-  //   gr->SetPoint(i,lvalueRa,(fRaa(lvalueRa,&params4)));
-  //   //cout<<i<<" "<<lvalueRa<<" "<<(fRaa(lvalueRa,&params4))<<endl;
-  //   //gr->SetPoint(i,lvalueRa,result);
-  // }
-  // cout<<"new value is "<<fRaa(1.47,&params4)<<endl;
-  // TCanvas *c1=new TCanvas("c1","c1");
-  // c1->cd();
-  // gr->Draw("ALP");
-  
-  // auto t2b = std::chrono::high_resolution_clock::now();
-  // double durationb = std::chrono::duration_cast<std::chrono::microseconds>( t2b - t1b ).count();
+  auto t2b = std::chrono::high_resolution_clock::now();
+  double durationb = std::chrono::duration_cast<std::chrono::microseconds>( t2b - t1b ).count();
 
-  // double Duration=durationb/1000;
-  // cout<<"total time taken by the script: "<<Duration<<" ms"<<endl; 
+  double Duration=durationb/1000;
+  cout<<"total time taken by the script: "<<Duration<<" ms"<<endl; 
   
   delete []getresults;
   
