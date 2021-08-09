@@ -513,57 +513,62 @@ double fRaa(double x,void *params){
   double z1 = p->z1;
   
   double zmax= GetZmax(A,x)+1e-7;
+  double output=0;
+  if(zmax>0){  
+  
+    struct fDnfR_L_params params1a = {A, GetB(z1), -GetC(z1), -z1};
+    struct fDnfR_L_params params1b = {A, GetB(z0), -GetC(z0), -z0};
+    struct fDnfR_L_params params1c = {A, GetB(zmax), -GetC(zmax), zmax};
+    struct fDnfR_L_params params1d = {A, GetB(TransitionBoundary), -GetC(TransitionBoundary), TransitionBoundary};
+    struct fDnfR_L_params params1f = {A, GetB(TransitionBoundary+1e-7), -GetC(TransitionBoundary+1e-7), TransitionBoundary+1e-7};
 
-  struct fDnfR_L_params params1a = {A, GetB(z1), -GetC(z1), -z1};
-  struct fDnfR_L_params params1b = {A, GetB(z0), -GetC(z0), -z0};
-  struct fDnfR_L_params params1c = {A, GetB(zmax), -GetC(zmax), zmax};
-  struct fDnfR_L_params params1d = {A, GetB(TransitionBoundary), -GetC(TransitionBoundary), TransitionBoundary};
-  struct fDnfR_L_params params1f = {A, GetB(TransitionBoundary+1e-7), -GetC(TransitionBoundary+1e-7), TransitionBoundary+1e-7};
-
-  double distancez0z1=0;
-  double distancez0surface=0;
-  if(TransitionBoundary!=0){
-    if (fabs(z0)>TransitionBoundary && fabs(z1)>TransitionBoundary){
-      if(zmax<=TransitionBoundary){
-	distancez0z1=fDnfR_L(x,&params1a) - fDnfR_L(x,&params1b);
-	distancez0surface=fDnfR_L(x,&params1c) - fDnfR_L(x,&params1d) + fDnfR_L(x,&params1f) - fDnfR_L(x,&params1b);
-      }else{
-	distancez0z1=fDnfR_L(x,&params1a) - fDnfR_L(x,&params1b);
-	distancez0surface=fDnfR_L(x,&params1c) - fDnfR_L(x,&params1b);
+    double distancez0z1=0;
+    double distancez0surface=0;
+    if(TransitionBoundary!=0){
+      if (fabs(z0)>TransitionBoundary && fabs(z1)>TransitionBoundary){
+	if(zmax<=TransitionBoundary){
+	  distancez0z1=fDnfR_L(x,&params1a) - fDnfR_L(x,&params1b);
+	  distancez0surface=fDnfR_L(x,&params1c) - fDnfR_L(x,&params1d) + fDnfR_L(x,&params1f) - fDnfR_L(x,&params1b);
+	}else{
+	  distancez0z1=fDnfR_L(x,&params1a) - fDnfR_L(x,&params1b);
+	  distancez0surface=fDnfR_L(x,&params1c) - fDnfR_L(x,&params1b);
+	}
       }
-    }
-    if (fabs(z0)>TransitionBoundary && fabs(z1)<TransitionBoundary){
-      distancez0z1=fDnfR_L(x,&params1a) - fDnfR_L(x,&params1d) + fDnfR_L(x,&params1f) - fDnfR_L(x,&params1b);
-      distancez0surface=fDnfR_L(x,&params1c) - fDnfR_L(x,&params1d) + fDnfR_L(x,&params1f) - fDnfR_L(x,&params1b);
-    }
-    if (fabs(z0)<TransitionBoundary && fabs(z1)<TransitionBoundary){
+      if (fabs(z0)>TransitionBoundary && fabs(z1)<TransitionBoundary){
+	distancez0z1=fDnfR_L(x,&params1a) - fDnfR_L(x,&params1d) + fDnfR_L(x,&params1f) - fDnfR_L(x,&params1b);
+	distancez0surface=fDnfR_L(x,&params1c) - fDnfR_L(x,&params1d) + fDnfR_L(x,&params1f) - fDnfR_L(x,&params1b);
+      }
+      if (fabs(z0)<TransitionBoundary && fabs(z1)<TransitionBoundary){
+	distancez0z1=fDnfR_L(x,&params1a) - fDnfR_L(x,&params1b);
+	distancez0surface=fDnfR_L(x,&params1c) - fDnfR_L(x,&params1b); 
+      }
+      if (fabs(z0)==TransitionBoundary && fabs(z1)<TransitionBoundary){
+	distancez0z1=fDnfR_L(x,&params1a) - fDnfR_L(x,&params1b);
+	distancez0surface=fDnfR_L(x,&params1c) - fDnfR_L(x,&params1b); 
+      }
+      if (fabs(z0)==TransitionBoundary && fabs(z1)==TransitionBoundary){
+	distancez0z1=fDnfR_L(x,&params1a) - fDnfR_L(x,&params1b);
+	distancez0surface=fDnfR_L(x,&params1c) - fDnfR_L(x,&params1b); 
+      }
+      if (fabs(z0)>TransitionBoundary && fabs(z1)==TransitionBoundary){
+	distancez0z1=fDnfR_L(x,&params1a) - fDnfR_L(x,&params1d) + fDnfR_L(x,&params1f) - fDnfR_L(x,&params1b);
+	distancez0surface=fDnfR_L(x,&params1c) - fDnfR_L(x,&params1d) + fDnfR_L(x,&params1f) - fDnfR_L(x,&params1b); 
+      }
+    }else{
       distancez0z1=fDnfR_L(x,&params1a) - fDnfR_L(x,&params1b);
-      distancez0surface=fDnfR_L(x,&params1c) - fDnfR_L(x,&params1b); 
+      distancez0surface=fDnfR_L(x,&params1c) - fDnfR_L(x,&params1b);
     }
-    if (fabs(z0)==TransitionBoundary && fabs(z1)<TransitionBoundary){
-      distancez0z1=fDnfR_L(x,&params1a) - fDnfR_L(x,&params1b);
-      distancez0surface=fDnfR_L(x,&params1c) - fDnfR_L(x,&params1b); 
-    }
-    if (fabs(z0)==TransitionBoundary && fabs(z1)==TransitionBoundary){
-      distancez0z1=fDnfR_L(x,&params1a) - fDnfR_L(x,&params1b);
-      distancez0surface=fDnfR_L(x,&params1c) - fDnfR_L(x,&params1b); 
-    }
-    if (fabs(z0)>TransitionBoundary && fabs(z1)==TransitionBoundary){
-      distancez0z1=fDnfR_L(x,&params1a) - fDnfR_L(x,&params1d) + fDnfR_L(x,&params1f) - fDnfR_L(x,&params1b);
-      distancez0surface=fDnfR_L(x,&params1c) - fDnfR_L(x,&params1d) + fDnfR_L(x,&params1f) - fDnfR_L(x,&params1b); 
-    }
-  }else{
-    distancez0z1=fDnfR_L(x,&params1a) - fDnfR_L(x,&params1b);
-    distancez0surface=fDnfR_L(x,&params1c) - fDnfR_L(x,&params1b);
-  }
 
-  if(isnan(distancez0z1)){
-    distancez0z1=1e9;
+    if(isnan(distancez0z1)){
+      distancez0z1=1e9;
+    }
+    if(isnan(distancez0surface)){
+      distancez0surface=1e9;
+    }
+    output= distancez0z1 - 2*(distancez0surface) - x1;
+  }else{
+    output=1e9;
   }
-  if(isnan(distancez0surface)){
-    distancez0surface=1e9;
-  }
-  double output= distancez0z1 - 2*(distancez0surface) - x1;
   
   return output;
 }
@@ -889,37 +894,56 @@ double *GetRefractedRayPar(double z0, double x1 ,double z1, double LangR, double
   F4b.params = &params4;
   
   /* Do the minimisation and get the value of the L parameter and the launch angle and then verify to see that the value of L that we got was actually a root of fRaa function. The thing to note here is the lower limit of the minimisation function is set to the L value corresponding to the reflected ray launch angle. Since we know the refracted ray always has bigger launch angle the reflected ray this reduces our range and makes the function more efficient at finding the refracted ray launch angle. */
-  double LowerLimit=Getnz(z0)*sin((LangR*(pi/180.0)));
-  if(isnan(LowerLimit)){
-    LowerLimit=Getnz(z0)*sin((30.0*(pi/180.0)));
-  }
+  double LowerLimit=Getnz(z0)*sin((LangR*(pi/180.0)))+0.4;
+  //if(isnan(LowerLimit)){
+    LowerLimit=Getnz(z0)*sin((65.0*(pi/180.0)));
+    //}
   lvalueRa[0]=FindFunctionRoot(F4,LowerLimit,UpperLimitL[0]);
   LangRa[0]=asin(lvalueRa[0]/Getnz(z0))*(180.0/pi);
   checkzeroRa[0]=(fRaa(lvalueRa[0],&params4));
   zmax[0]=GetZmax(A_ice,lvalueRa[0])+1e-7;
 
+  cout<<lvalueRa[0]<<" "<<LangRa[0]<<" "<<checkzeroRa[0]<<" "<<zmax[0]<<endl; 
+  
   bool checkzmax=false;
   if(zmax[0]<0){
     double LowerLimit=lvalueRa[0]+0.2;
     if(LowerLimit>UpperLimitL[0]){
+      cout<<"in here"<<endl;
       LowerLimit=lvalueRa[0]+0.05;
     }
+    cout<<"limits are "<<LowerLimit<<" "<<UpperLimitL[0]<<endl;
     lvalueRa[0]=FindFunctionRootFDF(F4b,LowerLimit,UpperLimitL[0]);
     LangRa[0]=asin(lvalueRa[0]/Getnz(z0))*(180.0/pi);
     checkzeroRa[0]=fRaa(lvalueRa[0],&params4);
     zmax[0]=GetZmax(A_ice,lvalueRa[0])+1e-7;
+  
+    cout<<"here "<<lvalueRa[0]<<" "<<LangRa[0]<<" "<<checkzeroRa[0]<<" "<<zmax[0]<<endl;
+    if(zmax[0]<0){
+      cout<<" here too "<<endl;
+      // cout<<" here now "<<endl;
+      //LowerLimit=LowerLimit+0.1;
+      lvalueRa[0]=FindFunctionRootFDF(F4b,LowerLimit,UpperLimitL[0]);
+      LangRa[0]=asin(lvalueRa[0]/Getnz(z0))*(180.0/pi);
+      checkzeroRa[0]=fRaa(lvalueRa[0],&params4);
+      zmax[0]=GetZmax(A_ice,lvalueRa[0])+1e-7;
+    }
     checkzmax=true;
+    cout<<lvalueRa[0]<<" "<<LangRa[0]<<" "<<checkzeroRa[0]<<" "<<zmax[0]<<endl;
   }
   
-  if(checkzeroRa[0]>0.5){
-    lvalueRa[0]=FindFunctionRootFDF(F4b,Getnz(z0)*sin((LangR*(pi/180.0))),UpperLimitL[0]);
+  if(fabs(checkzeroRa[0])>0.5){
+    cout<<"doing second loop "<<endl;
+    lvalueRa[0]=FindFunctionRootFDF(F4b,LowerLimit,UpperLimitL[0]);
     LangRa[0]=asin(lvalueRa[0]/Getnz(z0))*(180.0/pi);
     checkzeroRa[0]=fRaa(lvalueRa[0],&params4);
     zmax[0]=GetZmax(A_ice,lvalueRa[0])+1e-7;
+    cout<<"in here now "<<endl;
+    cout<<lvalueRa[0]<<" "<<LangRa[0]<<" "<<checkzeroRa[0]<<" "<<zmax[0]<<endl; 
   }
 
   if(checkzmax==false){
-    lvalueRa[1]=FindFunctionRoot(F4,lvalueRa[0]-0.25,lvalueRa[0]-0.05);
+    lvalueRa[1]=FindFunctionRoot(F4,lvalueRa[0]-0.15,lvalueRa[0]-0.05);
   }else{
     lvalueRa[1]=FindFunctionRoot(F4,lvalueRa[0]+0.02,UpperLimitL[0]);
   }
@@ -927,7 +951,8 @@ double *GetRefractedRayPar(double z0, double x1 ,double z1, double LangR, double
   checkzeroRa[1]=fRaa(lvalueRa[1],&params4);
   zmax[1]=GetZmax(A_ice,lvalueRa[1])+1e-7;
 
-  if(checkzmax==true && (fabs(checkzeroRa[1])>0.5 || isnan(checkzeroRa[1])==true)){
+  //if(checkzmax==true && (fabs(checkzeroRa[1])>0.5 || isnan(checkzeroRa[1])==true)){
+  if(fabs(checkzeroRa[1])>0.5 || isnan(checkzeroRa[1])==true || fabs(lvalueRa[1]-lvalueRa[0])<1e-4 ){
     lvalueRa[1]=FindFunctionRoot(F4,lvalueRa[0]-0.25,lvalueRa[0]-0.05);
     LangRa[1]=asin(lvalueRa[1]/Getnz(z0))*(180.0/pi);
     checkzeroRa[1]=fRaa(lvalueRa[1],&params4);
@@ -1696,10 +1721,11 @@ double *IceRayTracing(double x0, double z0, double x1, double z1){
   }
   
   /* print out all the output from the code */
-  //cout<<0<<" ,x0= "<<x0<<" ,z0= "<<z0<<" ,x1= "<<x1<<" ,z1= "<<z1<<" ,langRa= "<<LangRa[0]<<" ,langR= "<<LangR<<" ,langD= "<<LangD<<" ,langD-langR= "<<LangD-LangR<<" ,langD-langRa= "<<LangD-LangRa[0]<<" ,RangRa= "<<RangRa[0]<<" ,RangR= "<<RangR<<" ,RangD= "<<RangD<<" ,RangR-RangD= "<<RangR-RangD<<" ,RangRa-RangD= "<<RangRa[0]-RangD<<" ,timeRa= "<<timeRa[0]<<" ,timeR= "<<timeRa[0]<<" ,timeD= "<<timeD<<" ,timeR-timeD= "<<timeR-timeD<<" ,timeRa-timeD= "<<timeRa[0]-timeD<<" ,lvalueRa "<<lvalueRa[0]<<" ,lvalueR "<<lvalueR<<" "<<" ,lvalueD "<<lvalueD<<" ,checkzeroRa "<<checkzeroRa[0]<<" ,checkzeroR "<<checkzeroR<<" ,checkzeroD "<<checkzeroD<<endl;
+  cout<<0<<" ,x0= "<<x0<<" ,z0= "<<z0<<" ,x1= "<<x1<<" ,z1= "<<z1<<" ,langRa= "<<LangRa[0]<<" ,langR= "<<LangR<<" ,langD= "<<LangD<<" ,langD-langR= "<<LangD-LangR<<" ,langD-langRa= "<<LangD-LangRa[0]<<" ,RangRa= "<<RangRa[0]<<" ,RangR= "<<RangR<<" ,RangD= "<<RangD<<" ,RangR-RangD= "<<RangR-RangD<<" ,RangRa-RangD= "<<RangRa[0]-RangD<<" ,timeRa= "<<timeRa[0]<<" ,timeR= "<<timeRa[0]<<" ,timeD= "<<timeD<<" ,timeR-timeD= "<<timeR-timeD<<" ,timeRa-timeD= "<<timeRa[0]-timeD<<" ,lvalueRa "<<lvalueRa[0]<<" ,lvalueR "<<lvalueR<<" "<<" ,lvalueD "<<lvalueD<<" ,checkzeroRa "<<checkzeroRa[0]<<" ,checkzeroR "<<checkzeroR<<" ,checkzeroD "<<checkzeroD<<endl;
 
-  //cout<<0<<" ,x0= "<<x0<<" ,z0= "<<z0<<" ,x1= "<<x1<<" ,z1= "<<z1<<" ,langRa= "<<LangRa[1]<<" ,langR= "<<LangR<<" ,langD= "<<LangD<<" ,langD-langR= "<<LangD-LangR<<" ,langD-langRa= "<<LangD-LangRa[1]<<" ,RangRa= "<<RangRa[1]<<" ,RangR= "<<RangR<<" ,RangD= "<<RangD<<" ,RangR-RangD= "<<RangR-RangD<<" ,RangRa-RangD= "<<RangRa[1]-RangD<<" ,timeRa= "<<timeRa[1]<<" ,timeR= "<<timeRa[1]<<" ,timeD= "<<timeD<<" ,timeR-timeD= "<<timeR-timeD<<" ,timeRa-timeD= "<<timeRa[1]-timeD<<" ,lvalueRa "<<lvalueRa[1]<<" ,lvalueR "<<lvalueR<<" "<<" ,lvalueD "<<lvalueD<<" ,checkzeroRa "<<checkzeroRa[1]<<" ,checkzeroR "<<checkzeroR<<" ,checkzeroD "<<checkzeroD<<endl;
+  cout<<0<<" ,x0= "<<x0<<" ,z0= "<<z0<<" ,x1= "<<x1<<" ,z1= "<<z1<<" ,langRa= "<<LangRa[1]<<" ,langR= "<<LangR<<" ,langD= "<<LangD<<" ,langD-langR= "<<LangD-LangR<<" ,langD-langRa= "<<LangD-LangRa[1]<<" ,RangRa= "<<RangRa[1]<<" ,RangR= "<<RangR<<" ,RangD= "<<RangD<<" ,RangR-RangD= "<<RangR-RangD<<" ,RangRa-RangD= "<<RangRa[1]-RangD<<" ,timeRa= "<<timeRa[1]<<" ,timeR= "<<timeRa[1]<<" ,timeD= "<<timeD<<" ,timeR-timeD= "<<timeR-timeD<<" ,timeRa-timeD= "<<timeRa[1]-timeD<<" ,lvalueRa "<<lvalueRa[1]<<" ,lvalueR "<<lvalueR<<" "<<" ,lvalueD "<<lvalueD<<" ,checkzeroRa "<<checkzeroRa[1]<<" ,checkzeroR "<<checkzeroR<<" ,checkzeroD "<<checkzeroD<<endl;
 
+  cout<<zmax[0]<<" "<<zmax[1]<<endl;
   /* Fill in the output pointer after calculating all the results */
   output[0]=LangD;
   output[1]=LangR;
