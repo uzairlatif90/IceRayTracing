@@ -829,7 +829,7 @@ double *IceRayTracing::GetRefractedRayPar(double z0, double x1 ,double z1, doubl
   }
   
   /* Set up all the variables that will be used to get the parameters for the refracted ray */
-  double lvalueR=sin(LangR*(IceRayTracing::pi/180))*IceRayTracing::Getnz(z0);
+  //double lvalueR=sin(LangR*(IceRayTracing::pi/180))*IceRayTracing::Getnz(z0);
   double lvalueRa[2]={0,0};
   double LangRa[2]={0,0};
   double checkzeroRa[2]={-1000,-1000};
@@ -858,50 +858,55 @@ double *IceRayTracing::GetRefractedRayPar(double z0, double x1 ,double z1, doubl
   F4b.params = &params4;
   
   /* Do the minimisation and get the value of the L parameter and the launch angle and then verify to see that the value of L that we got was actually a root of fRaa function. The thing to note here is the lower limit of the minimisation function is set to the L value corresponding to the reflected ray launch angle. Since we know the refracted ray always has bigger launch angle the reflected ray this reduces our range and makes the function more efficient at finding the refracted ray launch angle. */
-  double LowerLimit=IceRayTracing::Getnz(z0)*sin((LangR*(IceRayTracing::pi/180.0)));
-  if(std::isnan(LowerLimit)){
-    LowerLimit=IceRayTracing::Getnz(z0)*sin((30.0*(IceRayTracing::pi/180.0)));
-  }
+  double LowerLimit=0;
+  LowerLimit=IceRayTracing::Getnz(z0)*sin((64.0*(IceRayTracing::pi/180.0)));
+
   lvalueRa[0]=IceRayTracing::FindFunctionRoot(F4,LowerLimit,UpperLimitL[0]);
   LangRa[0]=asin(lvalueRa[0]/IceRayTracing::Getnz(z0))*(180.0/IceRayTracing::pi);
   checkzeroRa[0]=(IceRayTracing::fRaa(lvalueRa[0],&params4));
   zmax[0]=GetZmax(IceRayTracing::A_ice,lvalueRa[0])+1e-7;
 
-  bool checkzmax=false;
-  if(zmax[0]<0){
-    double LowerLimit=lvalueRa[0]+0.2;
-    if(LowerLimit>UpperLimitL[0]){
-      LowerLimit=lvalueRa[0]+0.05;
-    }
+  if(fabs(checkzeroRa[0])>0.5){
     lvalueRa[0]=IceRayTracing::FindFunctionRootFDF(F4b,LowerLimit,UpperLimitL[0]);
     LangRa[0]=asin(lvalueRa[0]/IceRayTracing::Getnz(z0))*(180.0/IceRayTracing::pi);
     checkzeroRa[0]=IceRayTracing::fRaa(lvalueRa[0],&params4);
-    zmax[0]=GetZmax(IceRayTracing::A_ice,lvalueRa[0])+1e-7;
-    checkzmax=true;
-  }
-  
-  if(checkzeroRa[0]>0.5){
-    lvalueRa[0]=IceRayTracing::FindFunctionRootFDF(F4b,IceRayTracing::Getnz(z0)*sin((LangR*(IceRayTracing::pi/180.0))),UpperLimitL[0]);
-    LangRa[0]=asin(lvalueRa[0]/IceRayTracing::Getnz(z0))*(180.0/IceRayTracing::pi);
-    checkzeroRa[0]=IceRayTracing::fRaa(lvalueRa[0],&params4);
-    zmax[0]=GetZmax(IceRayTracing::A_ice,lvalueRa[0])+1e-7;
+    zmax[0]=IceRayTracing::GetZmax(IceRayTracing::A_ice,lvalueRa[0])+1e-7;
   }
 
-  if(checkzmax==false){
-    lvalueRa[1]=IceRayTracing::FindFunctionRoot(F4,lvalueRa[0]-0.25,lvalueRa[0]-0.05);
-  }else{
-    lvalueRa[1]=IceRayTracing::FindFunctionRoot(F4,lvalueRa[0]+0.02,UpperLimitL[0]);
-  }
-  LangRa[1]=asin(lvalueRa[1]/IceRayTracing::Getnz(z0))*(180.0/IceRayTracing::pi);
-  checkzeroRa[1]=IceRayTracing::fRaa(lvalueRa[1],&params4);
-  zmax[1]=GetZmax(IceRayTracing::A_ice,lvalueRa[1])+1e-7;
+  if(fabs(checkzeroRa[0])<0.5){
 
-  if(checkzmax==true && (fabs(checkzeroRa[1])>0.5 || std::isnan(checkzeroRa[1])==true)){
-    lvalueRa[1]=IceRayTracing::FindFunctionRoot(F4,lvalueRa[0]-0.25,lvalueRa[0]-0.05);
+    lvalueRa[1]=IceRayTracing::FindFunctionRoot(F4,lvalueRa[0]-0.15,lvalueRa[0]-0.023);
     LangRa[1]=asin(lvalueRa[1]/IceRayTracing::Getnz(z0))*(180.0/IceRayTracing::pi);
     checkzeroRa[1]=IceRayTracing::fRaa(lvalueRa[1],&params4);
-    zmax[1]=GetZmax(IceRayTracing::A_ice,lvalueRa[1])+1e-7;
-  }
+    zmax[1]=IceRayTracing::GetZmax(IceRayTracing::A_ice,lvalueRa[1])+1e-7;
+  
+    if(fabs(checkzeroRa[1])>0.5 || std::isnan(checkzeroRa[1])==true || fabs(lvalueRa[1]-lvalueRa[0])<1e-4 ){  
+      lvalueRa[1]=IceRayTracing::FindFunctionRoot(F4,lvalueRa[0]-0.23,lvalueRa[0]-0.023);
+      LangRa[1]=asin(lvalueRa[1]/IceRayTracing::Getnz(z0))*(180.0/IceRayTracing::pi);
+      checkzeroRa[1]=IceRayTracing::fRaa(lvalueRa[1],&params4);
+      zmax[1]=IceRayTracing::GetZmax(IceRayTracing::A_ice,lvalueRa[1])+1e-7;
+    }
+
+    if(fabs(checkzeroRa[1])>0.5 || std::isnan(checkzeroRa[1])==true || fabs(lvalueRa[1]-lvalueRa[0])<1e-4 ){  
+      lvalueRa[1]=IceRayTracing::FindFunctionRootFDF(F4b,lvalueRa[0]-0.23,lvalueRa[0]-0.023);
+      LangRa[1]=asin(lvalueRa[1]/IceRayTracing::Getnz(z0))*(180.0/IceRayTracing::pi);
+      checkzeroRa[1]=fRaa(lvalueRa[1],&params4);
+      zmax[1]=IceRayTracing::GetZmax(A_ice,lvalueRa[1])+1e-7;
+    }
+
+    if(fabs(checkzeroRa[1])>0.5 || std::isnan(checkzeroRa[1])==true || fabs(lvalueRa[1]-lvalueRa[0])<1e-4 ){  
+      lvalueRa[1]=IceRayTracing::FindFunctionRootFDF(F4b,lvalueRa[0]-0.1,lvalueRa[0]-0.023);
+      LangRa[1]=asin(lvalueRa[1]/IceRayTracing::Getnz(z0))*(180.0/IceRayTracing::pi);
+      checkzeroRa[1]=IceRayTracing::fRaa(lvalueRa[1],&params4);
+      zmax[1]=IceRayTracing::GetZmax(IceRayTracing::A_ice,lvalueRa[1])+1e-7;
+    }
+
+  }else{
+    lvalueRa[1]=0;
+    LangRa[1]=0;
+    checkzeroRa[1]=-1000;
+    zmax[1]=-1000;
+  } 
  
   for(int i=0;i<2;i++){////loop over the two refracted solutions
   
