@@ -878,13 +878,20 @@ double *IceRayTracing::GetRefractedRayPar(double z0, double x1 ,double z1, doubl
 
   if(fabs(checkzeroRa[0])<0.5){
 
-    lvalueRa[1]=IceRayTracing::FindFunctionRoot(F4,lvalueRa[0]-0.15,lvalueRa[0]-0.023);
+    lvalueRa[1]=IceRayTracing::FindFunctionRoot(F4,lvalueRa[0]-0.23,lvalueRa[0]-0.023);
     LangRa[1]=asin(lvalueRa[1]/IceRayTracing::Getnz(z0))*(180.0/IceRayTracing::pi);
     checkzeroRa[1]=IceRayTracing::fRaa(lvalueRa[1],&params4);
     zmax[1]=IceRayTracing::GetZmax(IceRayTracing::A_ice,lvalueRa[1])+1e-7;
   
     if(fabs(checkzeroRa[1])>0.5 || std::isnan(checkzeroRa[1])==true || fabs(lvalueRa[1]-lvalueRa[0])<1e-4 ){  
-      lvalueRa[1]=IceRayTracing::FindFunctionRoot(F4,lvalueRa[0]-0.23,lvalueRa[0]-0.023);
+      lvalueRa[1]=IceRayTracing::FindFunctionRoot(F4,lvalueRa[0]-0.15,lvalueRa[0]-0.023);
+      LangRa[1]=asin(lvalueRa[1]/IceRayTracing::Getnz(z0))*(180.0/IceRayTracing::pi);
+      checkzeroRa[1]=IceRayTracing::fRaa(lvalueRa[1],&params4);
+      zmax[1]=IceRayTracing::GetZmax(IceRayTracing::A_ice,lvalueRa[1])+1e-7;
+    }
+
+    if(fabs(checkzeroRa[1])>0.5 || std::isnan(checkzeroRa[1])==true || fabs(lvalueRa[1]-lvalueRa[0])<1e-4 ){  
+      lvalueRa[1]=IceRayTracing::FindFunctionRoot(F4,lvalueRa[0]+0.005,UpperLimitL[0]);
       LangRa[1]=asin(lvalueRa[1]/IceRayTracing::Getnz(z0))*(180.0/IceRayTracing::pi);
       checkzeroRa[1]=IceRayTracing::fRaa(lvalueRa[1],&params4);
       zmax[1]=IceRayTracing::GetZmax(IceRayTracing::A_ice,lvalueRa[1])+1e-7;
@@ -902,6 +909,13 @@ double *IceRayTracing::GetRefractedRayPar(double z0, double x1 ,double z1, doubl
       LangRa[1]=asin(lvalueRa[1]/IceRayTracing::Getnz(z0))*(180.0/IceRayTracing::pi);
       checkzeroRa[1]=IceRayTracing::fRaa(lvalueRa[1],&params4);
       zmax[1]=IceRayTracing::GetZmax(IceRayTracing::A_ice,lvalueRa[1])+1e-7;
+    }
+
+    if(LangRa[1]<LangRa[0] && fabs(checkzeroRa[0])<0.5 && fabs(checkzeroRa[1])<0.5){
+      swap(lvalueRa[1],lvalueRa[0]);
+      swap(LangRa[1],LangRa[0]);
+      swap(checkzeroRa[1],checkzeroRa[0]);
+      swap(zmax[1],zmax[0]);
     }
 
   }else{
@@ -2215,4 +2229,112 @@ double *IceRayTracing::IceRayTracing_Cnz(double x0, double z0, double x1, double
 
   
   return output;
+}
+
+ 
+double *IceRayTracing::GeantRayTracer(double xT, double yT, double zT, double xR, double yR, double zR){
+
+  double TxCor[3]={xT,yT,zT};
+  double RxCor[3]={xR,yR,zR};
+  
+  ////For recording how much time the process took
+  auto t1b = std::chrono::high_resolution_clock::now();  
+  
+  double x0=0;/////always has to be zero
+  double z0=TxCor[2];
+  double x1=sqrt(pow(TxCor[0]-RxCor[0],2)+pow(TxCor[1]-RxCor[1],2));
+  double z1=RxCor[2];
+
+  double * getresults=IceRayTracing::IceRayTracing(x0,z0,x1,z1);
+
+  // cout<<"*******For the Direct Ray********"<<endl;
+  // cout<<"Launch Angle: "<<getresults[0]<<" deg"<<endl;
+  // cout<<"Recieve Angle: "<<getresults[8]<<" deg"<<endl;
+  // cout<<"Propogation Time: "<<getresults[4]*pow(10,9)<<" ns"<<endl;
+  // cout<<"*******For the Refracted[1] Ray********"<<endl;
+  // cout<<"Launch Angle: "<<getresults[2]<<" deg"<<endl;
+  // cout<<"Recieve Angle: "<<getresults[10]<<" deg"<<endl;
+  // cout<<"Propogation Time: "<<getresults[6]*pow(10,9)<<" ns"<<endl;
+  // cout<<"*******For the Refracted[2] Ray********"<<endl;
+  // cout<<"Launch Angle: "<<getresults[3]<<" deg"<<endl;
+  // cout<<"Recieve Angle: "<<getresults[11]<<" deg"<<endl;
+  // cout<<"Propogation Time: "<<getresults[7]*pow(10,9)<<" ns"<<endl;
+  // cout<<"*******For the Reflected Ray********"<<endl;
+  // cout<<"Launch Angle: "<<getresults[1]<<" deg"<<endl;
+  // cout<<"Recieve Angle: "<<getresults[9]<<" deg"<<endl;
+  // cout<<"Propogation Time: "<<getresults[5]*pow(10,9)<<" ns"<<endl;   
+  // cout<<"Incident Angle in Ice on the Surface: "<<getresults[18]<<" deg"<<endl;
+  
+  cout<<" "<<endl;
+  cout<<"x0="<<x0<<" m , z0="<<z0<<" m ,x1="<<x1<<" m ,z1="<<z1<<" m "<<endl;
+
+  vector <double> OutputValues[4];
+  
+  if(getresults[8]!=-1000){ 
+    cout<<"*******For the Direct Ray********"<<endl;
+    cout<<"Launch Angle: "<<getresults[0]<<" deg"<<endl;
+    cout<<"Recieve Angle: "<<getresults[8]<<" deg"<<endl;
+    cout<<"Propogation Time: "<<getresults[4]*pow(10,9)<<" ns"<<endl;
+    OutputValues[0].push_back(getresults[0]);
+    OutputValues[1].push_back(getresults[8]);
+    OutputValues[2].push_back(getresults[4]*pow(10,9));
+    OutputValues[3].push_back(getresults[4]*IceRayTracing::c_light_ms);
+  }
+
+  if(getresults[10]!=-1000){ 
+    cout<<"*******For the Refracted Ray 1********"<<endl;
+    cout<<"Launch Angle: "<<getresults[2]<<" deg"<<endl;
+    cout<<"Recieve Angle: "<<getresults[10]<<" deg"<<endl;
+    cout<<"Propogation Time: "<<getresults[6]*pow(10,9)<<" ns"<<endl;
+    OutputValues[0].push_back(getresults[2]);
+    OutputValues[1].push_back(getresults[10]);
+    OutputValues[2].push_back(getresults[6]*pow(10,9));
+    OutputValues[3].push_back(getresults[6]*IceRayTracing::c_light_ms);
+  }
+
+  if(getresults[11]!=-1000){ 
+    cout<<"*******For the Refracted Ray 2********"<<endl;
+    cout<<"Launch Angle: "<<getresults[3]<<" deg"<<endl;
+    cout<<"Recieve Angle: "<<getresults[11]<<" deg"<<endl;
+    cout<<"Propogation Time: "<<getresults[7]*pow(10,9)<<" ns"<<endl;
+    OutputValues[0].push_back(getresults[3]);
+    OutputValues[1].push_back(getresults[11]);
+    OutputValues[2].push_back(getresults[7]*pow(10,9));
+    OutputValues[3].push_back(getresults[7]*IceRayTracing::c_light_ms);
+  }
+
+  double *output=new double[4];
+  
+  if(OutputValues[3].size()!=0){
+    int MinValueBin=TMath::LocMin(OutputValues[3].size(),OutputValues[3].data());
+    output[0]=OutputValues[0][MinValueBin];
+    output[1]=OutputValues[1][MinValueBin];
+    output[2]=OutputValues[2][MinValueBin];
+    output[3]=OutputValues[3][MinValueBin];
+  }else{
+    output[0]=-1000;
+    output[1]=-1000;
+    output[2]=-1000;
+    output[3]=-1000;
+  }
+  
+  
+  delete []getresults;
+  
+  auto t2b = std::chrono::high_resolution_clock::now();
+  double durationb = std::chrono::duration_cast<std::chrono::microseconds>( t2b - t1b ).count();
+
+  double Duration=durationb/1000;
+  cout<<"total time taken by the script: "<<Duration<<" ms"<<endl;
+
+  ////output array values are
+  ////1st is value is launch angle in degrees
+  ////2nd is value is receive angle in degrees
+  ////3rd is value is time in ns
+  ////4th is value is distance is in meters
+  
+  cout<<output[0]<<" "<<output[1]<<" "<<output[2]<<" "<<output[3]<<endl;
+
+  return output;
+  
 }

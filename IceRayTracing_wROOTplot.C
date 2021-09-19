@@ -565,8 +565,12 @@ double fRaa(double x,void *params){
     if(isnan(distancez0surface)){
       distancez0surface=1e9;
     }
-    output= distancez0z1 - 2*(distancez0surface) - x1;
+    output= (distancez0z1 - 2*(distancez0surface) - x1);
   }else{
+    output=1e9;
+  }
+  
+  if(output<-1e8){
     output=1e9;
   }
   
@@ -886,7 +890,8 @@ double *GetRefractedRayPar(double z0, double x1 ,double z1, double LangR, double
   struct fDanfRa_params params4= {A_ice, z0, x1, z1};
   F4.function = &fRaa;
   F4.params = &params4;
-
+  //checkzeroRa[1]=fRaa(lvalueRa[1],&params4);
+ 
   gsl_function_fdf F4b;
   F4b.f = &fRaa;
   F4b.df = &fRaa_df;
@@ -910,22 +915,29 @@ double *GetRefractedRayPar(double z0, double x1 ,double z1, double LangR, double
     LangRa[0]=asin(lvalueRa[0]/Getnz(z0))*(180.0/pi);
     checkzeroRa[0]=fRaa(lvalueRa[0],&params4);
     zmax[0]=GetZmax(A_ice,lvalueRa[0])+1e-7;
-  }  
-
+  }
+  
   if(fabs(checkzeroRa[0])<0.5){
 
-    lvalueRa[1]=FindFunctionRoot(F4,lvalueRa[0]-0.15,lvalueRa[0]-0.023);
+    lvalueRa[1]=FindFunctionRoot(F4,lvalueRa[0]-0.23,lvalueRa[0]-0.023);
     LangRa[1]=asin(lvalueRa[1]/Getnz(z0))*(180.0/pi);
     checkzeroRa[1]=fRaa(lvalueRa[1],&params4);
     zmax[1]=GetZmax(A_ice,lvalueRa[1])+1e-7;
   
-    if(fabs(checkzeroRa[1])>0.5 || std::isnan(checkzeroRa[1])==true || fabs(lvalueRa[1]-lvalueRa[0])<1e-4 ){  
-      lvalueRa[1]=FindFunctionRoot(F4,lvalueRa[0]-0.23,lvalueRa[0]-0.023);
+    if(fabs(checkzeroRa[1])>0.5 || std::isnan(checkzeroRa[1])==true || fabs(lvalueRa[1]-lvalueRa[0])<1e-4 ){
+      lvalueRa[1]=FindFunctionRoot(F4,lvalueRa[0]-0.15,lvalueRa[0]-0.023);
       LangRa[1]=asin(lvalueRa[1]/Getnz(z0))*(180.0/pi);
       checkzeroRa[1]=fRaa(lvalueRa[1],&params4);
       zmax[1]=GetZmax(A_ice,lvalueRa[1])+1e-7;
     }
 
+    if(fabs(checkzeroRa[1])>0.5 || std::isnan(checkzeroRa[1])==true || fabs(lvalueRa[1]-lvalueRa[0])<1e-4 ){
+      lvalueRa[1]=FindFunctionRoot(F4,lvalueRa[0]+0.005,UpperLimitL[0]);
+      LangRa[1]=asin(lvalueRa[1]/Getnz(z0))*(180.0/pi);
+      checkzeroRa[1]=fRaa(lvalueRa[1],&params4);
+      zmax[1]=GetZmax(A_ice,lvalueRa[1])+1e-7;
+    }
+    
     if(fabs(checkzeroRa[1])>0.5 || std::isnan(checkzeroRa[1])==true || fabs(lvalueRa[1]-lvalueRa[0])<1e-4 ){  
       lvalueRa[1]=FindFunctionRootFDF(F4b,lvalueRa[0]-0.23,lvalueRa[0]-0.023);
       LangRa[1]=asin(lvalueRa[1]/Getnz(z0))*(180.0/pi);
@@ -939,13 +951,21 @@ double *GetRefractedRayPar(double z0, double x1 ,double z1, double LangR, double
       checkzeroRa[1]=fRaa(lvalueRa[1],&params4);
       zmax[1]=GetZmax(A_ice,lvalueRa[1])+1e-7;
     }
-
+    
+    if(LangRa[1]<LangRa[0] && fabs(checkzeroRa[0])<0.5 && fabs(checkzeroRa[1])<0.5){
+      swap(lvalueRa[1],lvalueRa[0]);
+      swap(LangRa[1],LangRa[0]);
+      swap(checkzeroRa[1],checkzeroRa[0]);
+      swap(zmax[1],zmax[0]);
+    }
+    
   }else{
     lvalueRa[1]=0;
     LangRa[1]=0;
     checkzeroRa[1]=-1000;
     zmax[1]=-1000;
   }
+ 
   
   for(int i=0;i<2;i++){////loop over the two refracted solutions
   
@@ -2401,6 +2421,19 @@ void IceRayTracing_wROOTplot(double xTx, double yTx, double zTx, double xRx, dou
 
   double Duration=durationb/1000;
   cout<<"total time taken by the script: "<<Duration<<" ms"<<endl; 
+
+  // TGraph * gr=new TGraph();
+  // struct fDanfRa_params params4= {A_ice, z0, x1, z1};
+  // for(double i=0;i<1000;i++){
+  //   double lvalue=1.3+0.001*i;
+  //   double checkzeroRa=fRaa(lvalue,&params4);
+  //   gr->SetPoint(i,lvalue,fabs(checkzeroRa));
+  //   //cout<<i<<" "<<lvalue<<" "<<fabs(checkzeroRa)<<endl;
+  //   if(lvalue>1.78){
+  //     break;
+  //   }
+  // }
+  // gr->Draw("ALP");
   
   delete []getresults;
   
