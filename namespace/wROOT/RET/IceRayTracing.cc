@@ -1,5 +1,5 @@
 /*
-This is IceRayTracing made for RadioScatter. Author: Uzair Latif 
+This is the IceRayTracing namespace. Author: Uzair Latif 
 released under GPL3.
 */
 
