@@ -834,7 +834,7 @@ double *GetReflectedRayPar(double z0, double x1 ,double z1){
 }
 
 /* This functions works for the Refracted ray and gives you back the launch angle, receive angle and propagation times (of the whole ray and the two direct rays that make it up) together with values of the L parameter and checkzero variable. checkzero variable checks how close the minimiser came to 0. 0 is perfect and less than 0.5 is pretty good. more than that should not be acceptable. It requires the launch angle of the reflected ray as an input. */
-double *GetRefractedRayPar(double z0, double x1 ,double z1, double LangR, double RangR){
+double *GetRefractedRayPar(double z0, double x1 ,double z1, double LangR, double RangR, double checkzeroD, double checkzeroR){
   
   double *output=new double[8*2];
 
@@ -902,7 +902,7 @@ double *GetRefractedRayPar(double z0, double x1 ,double z1, double LangR, double
     zmax[0]=GetZmax(A_ice,lvalueRa[0])+1e-7;
   }  
 
-  if(fabs(checkzeroRa[0])<0.5){
+  if(fabs(checkzeroRa[0])<0.5 && fabs(checkzeroD)>0.5 && fabs(checkzeroR)>0.5){
 
     lvalueRa[1]=FindFunctionRoot(F4,lvalueRa[0]-0.23,lvalueRa[0]-0.023);
     LangRa[1]=asin(lvalueRa[1]/Getnz(z0))*(180.0/pi);
@@ -1611,7 +1611,7 @@ double *IceRayTracing(double x0, double z0, double x1, double z1){
   
   /* This if condition makes sure that we only try to find a refracted ray if we don't get two possible ray paths from the direct and reflected case. This saves us alot of time since we know that between each Tx and Rx position we only expect 2 rays. */
   if(fabs(checkzeroR)>0.5 || fabs(checkzeroD)>0.5){
-    double* GetRefractedRay=GetRefractedRayPar(z0,x1,z1,LangR,RangR);
+    double* GetRefractedRay=GetRefractedRayPar(z0,x1,z1,LangR,RangR,checkzeroD,checkzeroR);
     RangRa[0]=GetRefractedRay[0];
     LangRa[0]=GetRefractedRay[1];
     timeRa[0]=GetRefractedRay[2];

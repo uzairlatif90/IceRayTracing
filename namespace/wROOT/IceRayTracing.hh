@@ -1,5 +1,6 @@
+
 /*
-This is IceRayTracing made for RadioScatter. Author: Uzair Latif 
+This is the IceRayTracing namespace. Author: Uzair Latif 
 released under GPL3.
 */
 #ifndef IRT_HEAD
@@ -10,6 +11,7 @@ released under GPL3.
 #include "TCanvas.h"
 #include "TString.h"
 #include "TAxis.h"
+#include "TMath.h"
 
 #include <stdio.h>
 #include <math.h>
@@ -133,7 +135,7 @@ namespace IceRayTracing{
   double *GetReflectedRayPar(double z0, double x1 ,double z1);
 
   /* This functions works for the Refracted ray and gives you back the launch angle, receive angle and propagation times (of the whole ray and the two direct rays that make it up) together with values of the L parameter and checkzero variable. checkzero variable checks how close the minimiser came to 0. 0 is perfect and less than 0.5 is pretty good. more than that should not be acceptable. It requires the launch angle of the reflected ray as an input. */
-  double *GetRefractedRayPar(double z0, double x1 ,double z1, double LangR, double RangR);
+  double *GetRefractedRayPar(double z0, double x1 ,double z1, double LangR, double RangR, double checkzeroD, double checkzeroR);
 
   /* This function returns the x and z values for the full Direct ray path in a TGraph and also prints out the ray path in a text file */
   TGraph* GetFullDirectRayPath(double z0, double x1, double z1,double lvalueD);
@@ -179,5 +181,8 @@ namespace IceRayTracing{
 
   /* This is the main raytracing function. x0 always has to be zero. z0 is the Tx depth in m and z1 is the depth of the Rx in m. Both depths are negative. x1 is the distance between them. This functions works for a constant refractive index */
   double *IceRayTracing_Cnz(double x0, double z0, double x1, double z1, double A_ice_Cnz); 
+
+  double *GeantRayTracer(double xT, double yT, double zT, double xR, double yR, double zR);
+  
 }
 #endif
