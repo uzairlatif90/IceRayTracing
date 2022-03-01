@@ -16,8 +16,8 @@ void MakeTxShwrRxPlot(){
   Int_t NTxStrt=0;
   Int_t NTxStop=ShowerLength;
   
-  TGraph *gr[3][NTxTot];
-  TGraph *grB[3][NTxTot];
+  TGraph *gr[4][NTxTot];
+  TGraph *grB[4][NTxTot];
 
   TGraph *grRx=new TGraph();
   grRx->SetMarkerStyle(21);
@@ -105,7 +105,7 @@ void MakeTxShwrRxPlot(){
 
     if(z1<0){
     
-      Double_t CascadePropTime=((fabs(z1)/cos((90-RotationAngle)*(TMath::Pi()/180.0)))/spedc)*pow(10,9);
+      Double_t CascadePropTime=((fabs(z1)/cos((90-RotationAngle)*(TMath::Pi()/180.0)))/c_light)*pow(10,9);
 	  
       if(z1==0){
 	z1=-0.01;
@@ -119,17 +119,25 @@ void MakeTxShwrRxPlot(){
       
       gr[0][idp]=GetFullDirectRayPath(z0,dist,z1,getres1[12]);
       gr[1][idp]=GetFullReflectedRayPath(z0,dist,z1,getres1[13]);
-      gr[2][idp]=GetFullRefractedRayPath(z0,dist,z1,getres1[15],getres1[14]);
+
+      if((getres1[9]==-1000 || getres1[8]==-1000) && getres1[10]!=-1000){  
+	gr[2][idp]=GetFullRefractedRayPath(z0,x1,z1,getres1[23],getres1[21],1);
+	if(getres1[11]!=-1000){ 
+	  gr[3][idp]=GetFullRefractedRayPath(z0,x1,z1,getres1[24],getres1[22],2);
+	}
+      }
 
       gr[0][idp]->SetLineColor(46);
       gr[1][idp]->SetLineColor(46);
       gr[2][idp]->SetLineColor(46);
+      gr[3][idp]->SetLineColor(46);
 	  
       gr[0][idp]->SetLineWidth(2);
       gr[1][idp]->SetLineWidth(2);
       gr[2][idp]->SetLineWidth(2);
+      gr[3][idp]->SetLineWidth(2);
       
-      for(Int_t ic=0;ic<3;ic++){
+      for(Int_t ic=0;ic<4;ic++){
 	for(Int_t inum=0;inum<gr[ic][idp]->GetN();inum++){
 	  Double_t x,y;
 	  gr[ic][idp]->GetPoint(inum,x,y);
@@ -164,26 +172,33 @@ void MakeTxShwrRxPlot(){
 	x1=x1+RxX;
       }
 
-      if(getres1[6]!=0){
-	Dtime[0]=getres1[3]*pow(10,9);
+      if(getres1[8]!=-1000){
+	Dtime[0]=getres1[4]*pow(10,9);
 	mg->Add(gr[0][idp]);;
 	grShwr->SetPoint(nidpRx,x1,z1);
 	nidpRx++;
       }
-      if(getres1[7]!=0){
-	Rtime[0]=getres1[4]*pow(10,9);
+      if(getres1[9]!=-1000){
+	Rtime[0]=getres1[5]*pow(10,9);
 	mg->Add(gr[1][idp]);;
 	grShwr->SetPoint(nidpRx,x1,z1);
 	nidpRx++;
       }
-      if(getres1[8]!=0){
-	Dtime[0]=getres1[5]*pow(10,9);
+      if(getres1[10]!=-1000){
+	Dtime[0]=getres1[6]*pow(10,9);
 	mg->Add(gr[2][idp]);;
 	grShwr->SetPoint(nidpRx,x1,z1);
 	nidpRx++;
       }
+      if(getres1[11]!=-1000){
+	Rtime[0]=getres1[7]*pow(10,9);
+	mg->Add(gr[3][idp]);;
+	grShwr->SetPoint(nidpRx,x1,z1);
+	nidpRx++;
+      }
 
-      if(getres1[6]!=0 || getres1[7]!=0 || getres1[8]!=0){
+      
+      if(getres1[8]!=-1000 || getres1[9]!=-1000 || getres1[10]!=-1000 || getres1[11]!=-1000){
 	checkfirsthit=true;
       }
     
@@ -228,17 +243,25 @@ void MakeTxShwrRxPlot(){
       
       grB[0][idp]=GetFullDirectRayPath(z0,dist,z1,getres2[12]);
       grB[1][idp]=GetFullReflectedRayPath(z0,dist,z1,getres2[13]);
-      grB[2][idp]=GetFullRefractedRayPath(z0,dist,z1,getres2[15],getres2[14]);
 
+      if((getres2[9]==-1000 || getres2[8]==-1000) && getres2[10]!=-1000){  
+	grB[2][idp]=GetFullRefractedRayPath(z0,x1,z1,getres2[23],getres2[21],1);
+	if(getres2[11]!=-1000){ 
+	  grB[3][idp]=GetFullRefractedRayPath(z0,x1,z1,getres2[24],getres2[22],2);
+	}
+      }
+      
       grB[0][idp]->SetLineColor(9);
       grB[1][idp]->SetLineColor(9);
       grB[2][idp]->SetLineColor(9);
+      grB[3][idp]->SetLineColor(9);
       
       grB[0][idp]->SetLineWidth(2);
       grB[1][idp]->SetLineWidth(2);
       grB[2][idp]->SetLineWidth(2);
+      grB[3][idp]->SetLineWidth(2);
       
-      for(Int_t ic=0;ic<3;ic++){
+      for(Int_t ic=0;ic<4;ic++){
 	for(Int_t inum=0;inum<grB[ic][idp]->GetN();inum++){
 	  Double_t x,y;
 	  grB[ic][idp]->GetPoint(inum,x,y);
@@ -276,26 +299,32 @@ void MakeTxShwrRxPlot(){
 	x1=x1+TxX;
       }
 
-      if(getres2[6]!=0){
-	Dtime[1]=getres2[3]*pow(10,9);
+      if(getres2[8]!=-1000){
+	Dtime[1]=getres2[4]*pow(10,9);
 	mg->Add(grB[0][idp]);;
 	grShwrTx->SetPoint(nidpTx,x1,z1);
 	nidpTx++;
       }
-      if(getres2[7]!=0){
-	Rtime[1]=getres2[4]*pow(10,9);
+      if(getres2[9]!=-1000){
+	Rtime[1]=getres2[5]*pow(10,9);
 	mg->Add(grB[1][idp]);;
 	grShwrTx->SetPoint(nidpTx,x1,z1);
 	nidpTx++;
       }
-      if(getres2[8]!=0){
-	Dtime[1]=getres2[5]*pow(10,9);
+      if(getres2[10]!=-1000){
+	Dtime[1]=getres2[6]*pow(10,9);
 	mg->Add(grB[2][idp]);;
 	grShwrTx->SetPoint(nidpTx,x1,z1);
 	nidpTx++;
       }
+      if(getres2[11]!=-1000){
+	Rtime[1]=getres2[7]*pow(10,9);
+	mg->Add(grB[3][idp]);;
+	grShwrTx->SetPoint(nidpTx,x1,z1);
+	nidpTx++;
+      }
       
-      if(getres2[6]!=0 || getres2[7]!=0 || getres2[8]!=0){
+      if(getres2[8]!=-1000 || getres2[9]!=-1000 || getres2[10]!=-1000 || getres2[11]!=-1000){
 	if(checkfirsthit==true){
 	  ShwrPntIndex.push_back(idp);
 	  ShwrTime[0].push_back(Dtime[0]+Dtime[1]);

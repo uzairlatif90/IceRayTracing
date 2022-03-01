@@ -6,7 +6,7 @@ int main(int argc, char**argv){
   
   if(argc<7){
     cout<<"More Arguments needed!"<<endl;
-    cout<<"Example run command: ./IceRayTracing 0 0 -100 0 100 -5"<<endl;
+    cout<<"Example run command: ./uzairRayTrace 0 0 -100 0 100 -5"<<endl;
     cout<<"Here the first three arguments are Tx coordinates i.e. x_Tx=0 m, y_Tx=0 m, z_Tx=-100 m  and the second three arguments are Rx coordinates i.e. x_Rx=0 m, y_Rx=100 m, z_Rx=-5 m "<<endl;
     return 0;
   }
@@ -16,7 +16,7 @@ int main(int argc, char**argv){
   } 
   if(argc>7){
     cout<<"More Arguments than needed!"<<endl;
-    cout<<"Example run command: ./IceRayTracing 0 0 -100 0 100 -5"<<endl;
+    cout<<"Example run command: ./uzairRayTrace 0 0 -100 0 100 -5"<<endl;
     cout<<"Here the first three arguments are Tx coordinates i.e. x_Tx=0 m, y_Tx=0 m, z_Tx=-100 m  and the second three arguments are Rx coordinates i.e. x_Rx=0 m, y_Rx=100 m, z_Rx=-5 m "<<endl;
     return 0;
   }

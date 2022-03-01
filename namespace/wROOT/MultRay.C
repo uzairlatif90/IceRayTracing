@@ -29,7 +29,7 @@ void MultRay(){
     if(zmax>1e-5){
       zn=z1;
       /* This function returns the x and z values for the full Refracted ray path in a TGraph */
-      grR[iang]=IceRayTracing::GetFullRefractedRayPath(z0,x1,z1,zmax,lvalueRa);
+      grR[iang]=IceRayTracing::GetFullRefractedRayPath(z0,x1,z1,zmax,lvalueRa,1);
     }else{
       zn=z1;
       /* This function returns the x and z values for the full Reflected ray path in a TGraph */

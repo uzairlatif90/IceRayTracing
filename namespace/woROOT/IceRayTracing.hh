@@ -25,6 +25,24 @@ using namespace std;
 
 namespace IceRayTracing{
 
+  /********Stuff for Interpolation**********/
+  static vector <double> GridPositionX;
+  static vector <double> GridPositionZ;
+  static vector <double> GridZValue[4];
+
+  static double GridStepSizeX_O=0.2;
+  static double GridStepSizeZ_O=0.2;
+  static double GridWidthX=20;
+  static double GridWidthZ=20;
+
+  static int GridPoints=100;////just set a non-zeronumber for now
+  static int TotalStepsX_O=100;////just set a non-zeronumber for now
+  static int TotalStepsZ_O=100;////just set a non-zeronumber for now
+  static double GridStartX=40;////just set a non-zeronumber for now
+  static double GridStopX=60;////just set a non-zeronumber for now
+  static double GridStartZ=-20;////just set a non-zeronumber for now
+  static double GridStopZ=0;
+  
   /* Set the value of pi */
   static constexpr double pi=3.14159265359;
   /* Set the value of the speed of light in m/s */ 
@@ -173,6 +191,21 @@ namespace IceRayTracing{
   void PlotAndStoreRays_Cnz(double x0,double z0, double z1, double x1, double lvalues[2], double A_ice_Cnz);
 
   /* This is the main raytracing function. x0 always has to be zero. z0 is the Tx depth in m and z1 is the depth of the Rx in m. Both depths are negative. x1 is the distance between them. This functions works for a constant refractive index */
-  double *IceRayTracing_Cnz(double x0, double z0, double x1, double z1, double A_ice_Cnz); 
+  double *IceRayTracing_Cnz(double x0, double z0, double x1, double z1, double A_ice_Cnz);
+
+  /* The set of functions starting with the name "fDa" are used in the minimisation procedure to find the launch angle (or the L parameter) for the direct ray */
+  double fDa_Air(double x,void *params);
+
+  /* This functions works for the Direct ray and gives you back the launch angle, receive angle and propagation time of the ray together with values of the L parameter and checkzero variable. checkzero variable checks how close the minimiser came to 0. 0 is perfect and less than 0.5 is pretty good. more than that should not be acceptable. */
+  double* GetDirectRayPar_Air(double z0, double x1, double z1);
+
+  double *GeantRayTracer(double xT, double yT, double zT, double xR, double yR, double zR);
+  
+  /* Function that makes interpolation tables for raytracing */
+  void MakeTable(double ShowerHitDistance,double zT);
+
+  /* Function that calculates the interpolated value for raytracing. The rt parameter: 0 is for launch angle, 1 is for recieve angle, 2 is for propagation time, 3 is for distance */
+  double GetInterpolatedValue(double xR, double zR, int rtParameter);
+  
 }
 #endif
