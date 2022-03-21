@@ -956,25 +956,48 @@ double *IceRayTracing::GetRefractedRayPar(double z0, double x1 ,double z1, doubl
       zmax[1]=IceRayTracing::GetZmax(IceRayTracing::A_ice,lvalueRa[1])+1e-7;
     }
 
-    if(fabs(checkzeroRa[1])>0.5 || std::isnan(checkzeroRa[1])==true || fabs(lvalueRa[1]-lvalueRa[0])<1e-4 ){  
-      lvalueRa[1]=IceRayTracing::FindFunctionRoot(F4,lvalueRa[0]+0.005,UpperLimitL[0]);
-      LangRa[1]=asin(lvalueRa[1]/IceRayTracing::Getnz(z0))*(180.0/IceRayTracing::pi);
-      checkzeroRa[1]=IceRayTracing::fRaa(lvalueRa[1],&params4);
-      zmax[1]=IceRayTracing::GetZmax(IceRayTracing::A_ice,lvalueRa[1])+1e-7;
+    if(fabs(checkzeroRa[1])>0.5 || std::isnan(checkzeroRa[1])==true || fabs(lvalueRa[1]-lvalueRa[0])<1e-4 ){
+      if(lvalueRa[0]+0.005<UpperLimitL[0]){
+	lvalueRa[1]=IceRayTracing::FindFunctionRoot(F4,lvalueRa[0]+0.005,UpperLimitL[0]);
+	LangRa[1]=asin(lvalueRa[1]/IceRayTracing::Getnz(z0))*(180.0/IceRayTracing::pi);
+	checkzeroRa[1]=IceRayTracing::fRaa(lvalueRa[1],&params4);
+	zmax[1]=IceRayTracing::GetZmax(IceRayTracing::A_ice,lvalueRa[1])+1e-7;
+      }else{
+	lvalueRa[1]=IceRayTracing::FindFunctionRoot(F4,lvalueRa[0]-0.1,lvalueRa[0]-0.01);
+	LangRa[1]=asin(lvalueRa[1]/IceRayTracing::Getnz(z0))*(180.0/IceRayTracing::pi);
+	checkzeroRa[1]=IceRayTracing::fRaa(lvalueRa[1],&params4);
+	zmax[1]=IceRayTracing::GetZmax(IceRayTracing::A_ice,lvalueRa[1])+1e-7;
+      }
     }
 
-    if(fabs(checkzeroRa[1])>0.5 || std::isnan(checkzeroRa[1])==true || fabs(lvalueRa[1]-lvalueRa[0])<1e-4 ){  
-      lvalueRa[1]=IceRayTracing::FindFunctionRootFDF(F4b,lvalueRa[0]-0.23,lvalueRa[0]-0.023);
-      LangRa[1]=asin(lvalueRa[1]/IceRayTracing::Getnz(z0))*(180.0/IceRayTracing::pi);
-      checkzeroRa[1]=IceRayTracing::fRaa(lvalueRa[1],&params4);
-      zmax[1]=IceRayTracing::GetZmax(IceRayTracing::A_ice,lvalueRa[1])+1e-7;
+    if(fabs(checkzeroRa[1])>0.5 || std::isnan(checkzeroRa[1])==true || fabs(lvalueRa[1]-lvalueRa[0])<1e-4 ){
+      double lvalueRatmp=IceRayTracing::FindFunctionRootFDF(F4b,lvalueRa[0]-0.23,lvalueRa[0]-0.023);
+      if(fabs(lvalueRatmp)<IceRayTracing::A_ice){
+	lvalueRa[1]=IceRayTracing::FindFunctionRootFDF(F4b,lvalueRa[0]-0.23,lvalueRa[0]-0.023);
+	LangRa[1]=asin(lvalueRa[1]/IceRayTracing::Getnz(z0))*(180.0/IceRayTracing::pi);
+	checkzeroRa[1]=IceRayTracing::fRaa(lvalueRa[1],&params4);
+	zmax[1]=IceRayTracing::GetZmax(IceRayTracing::A_ice,lvalueRa[1])+1e-7;
+      }
     }
 
-    if(fabs(checkzeroRa[1])>0.5 || std::isnan(checkzeroRa[1])==true || fabs(lvalueRa[1]-lvalueRa[0])<1e-4 ){  
-      lvalueRa[1]=IceRayTracing::FindFunctionRootFDF(F4b,lvalueRa[0]-0.1,lvalueRa[0]-0.023);
-      LangRa[1]=asin(lvalueRa[1]/IceRayTracing::Getnz(z0))*(180.0/IceRayTracing::pi);
-      checkzeroRa[1]=IceRayTracing::fRaa(lvalueRa[1],&params4);
-      zmax[1]=IceRayTracing::GetZmax(IceRayTracing::A_ice,lvalueRa[1])+1e-7;
+    if(fabs(checkzeroRa[1])>0.5 || std::isnan(checkzeroRa[1])==true || fabs(lvalueRa[1]-lvalueRa[0])<1e-4 ){
+      double lvalueRatmp=IceRayTracing::FindFunctionRootFDF(F4b,lvalueRa[0]-0.1,lvalueRa[0]-0.023);
+      if(fabs(lvalueRatmp)<IceRayTracing::A_ice){
+	lvalueRa[1]=lvalueRatmp;
+	LangRa[1]=asin(lvalueRa[1]/IceRayTracing::Getnz(z0))*(180.0/IceRayTracing::pi);
+	checkzeroRa[1]=IceRayTracing::fRaa(lvalueRa[1],&params4);
+	zmax[1]=IceRayTracing::GetZmax(IceRayTracing::A_ice,lvalueRa[1])+1e-7;
+      }
+    }
+
+    if(fabs(checkzeroRa[1])<0.5 && fabs(checkzeroRa[0])<0.5 && fabs(lvalueRa[1]-lvalueRa[0])<1e-4 ){
+      checkzeroRa[1]=1000;
+    }
+    if(std::isnan(LangRa[0])==true){
+      LangRa[0]=0;
+    }
+    if(std::isnan(LangRa[1])==true){
+      LangRa[1]=0;
     }
 
     if(LangRa[1]<LangRa[0] && fabs(checkzeroRa[0])<0.5 && fabs(checkzeroRa[1])<0.5){
