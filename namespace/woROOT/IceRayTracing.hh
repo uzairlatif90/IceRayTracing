@@ -12,7 +12,6 @@ released under GPL3.
 #include <string>
 #include <algorithm>
 #include <chrono>
-#include <vector>
 
 #include <gsl/gsl_errno.h>
 #include <gsl/gsl_math.h>
@@ -65,9 +64,9 @@ namespace IceRayTracing{
   /* E-feild Power Fresnel coefficient for S-polarised wave which is perpendicular to the plane of propogation/incidence. This function gives you back the reflectance. The transmittance is T=1-R */
   double Refl_S(double thetai);
   
-  /* E-feild Power Fresnel coefficient for P-polarised wave which is parallel to the plane of propogation/incidence. This function gives you back the reflectance. The transmittance is T=1-R */
+/* E-feild Power Fresnel coefficient for P-polarised wave which is parallel to the plane of propogation/incidence. This function gives you back the reflectance. The transmittance is T=1-R */
   double Refl_P(double thetai);
-  
+    
   /* The temperature and attenuation model has been taken from AraSim which also took it from here http://icecube.wisc.edu/~araproject/radio/ . This is basically Matt Newcomb's icecube directory which has alot of information, plots and codes about South Pole Ice activities. Please read it if you find it interesting. */
 
   /* Temperature model:The model takes in value of depth z in m and returns the value of temperature in Celsius.*/
@@ -79,10 +78,10 @@ namespace IceRayTracing{
   /* Setup the integrand to calculate the attenuation */
   double AttenuationIntegrand (double x, void * params);
   
-  /* Integrate over the integrand to calculate the attenuation */
+/* Integrate over the integrand to calculate the attenuation */
   double IntegrateOverLAttn (double A0, double Frequency, double z0, double z1, double Lvalue);
   
-  /* Calculate the total attenuation for each type of ray */
+/* Calculate the total attenuation for each type of ray */
   double GetTotalAttenuationDirect (double A0, double frequency, double z0, double z1, double Lvalue);
   
   double GetTotalAttenuationReflected (double A0, double frequency, double z0, double z1, double Lvalue);
@@ -117,6 +116,9 @@ namespace IceRayTracing{
   struct ftimeD_params { double a, b, c, speedc,l; };
   double ftimeD(double x,void *params);
 
+  /* The function used to calculate ray geometric path in ice */
+  double fpathD(double x,void *params);
+  
   /* The set of functions starting with the name "fDa" are used in the minimisation procedure to find the launch angle (or the L parameter) for the direct ray */
   struct fDanfRa_params { double a, z0, x1, z1; };
   double fDa(double x,void *params);
@@ -148,13 +150,14 @@ namespace IceRayTracing{
   /* This functions works for the Refracted ray and gives you back the launch angle, receive angle and propagation times (of the whole ray and the two direct rays that make it up) together with values of the L parameter and checkzero variable. checkzero variable checks how close the minimiser came to 0. 0 is perfect and less than 0.5 is pretty good. more than that should not be acceptable. It requires the launch angle of the reflected ray as an input. */
   double *GetRefractedRayPar(double z0, double x1 ,double z1, double LangR, double RangR, double checkzeroD, double checkzeroR);
 
-  /* This function returns the x and z values for the full Direct ray path in a TGraph and also prints out the ray path in a text file */
+  
+  /* This function returns the x and z values for the full Direct ray path and prints out the ray path in a text file */
   void GetFullDirectRayPath(double z0, double x1, double z1,double lvalueD, vector <double> &x, vector <double> &z);
 
-  /* This function returns the x and z values for the full Reflected ray path in a TGraph and also prints out the ray path in a text file */
+  /* This function returns the x and z values for the full Reflected ray path and prints out the ray path in a text file */
   void GetFullReflectedRayPath(double z0, double x1, double z1,double lvalueR, vector <double> &x, vector <double> &z);
   
-  /* This function returns the x and z values for the full Refracted ray path in a TGraph and also prints out the ray path in a text file */
+  /* This function returns the x and z values for the full Refracted ray path and prints out the ray path in a text file */
   void GetFullRefractedRayPath(double z0, double x1, double z1, double zmax, double lvalueRa, vector <double> &x, vector <double> &z,int raynumber);
 
   /* function for plotting and storing all the rays */
@@ -181,19 +184,19 @@ namespace IceRayTracing{
   /* This functions works for the Reflected ray and gives you back the launch angle, receive angle and propagation times (of the whole ray and the two direct rays that make it up) together with values of the L parameter. This is for constant refractive index*/
   double *GetReflectedRayPar_Cnz(double z0, double x1 , double z1, double A_ice_Cnz);
 
-   /* This function returns the x and z values for the full Direct ray path in a TGraph and also prints out the ray path in a text file. This is for a constant refractive index. */
-  void GetFullDirectRayPath_Cnz(double z0, double x1, double z1, double lvalueD, double A_ice_Cnz, vector <double> &x, vector <double> &z);
-  
-  /* This function returns the x and z values for the full Reflected ray path in a TGraph and also prints out the ray path in a text file. This is for a constant refractive index. */
-  void GetFullReflectedRayPath_Cnz(double z0, double x1, double z1, double lvalueR, double A_ice_Cnz,vector <double> &x, vector <double> &z); 
- 
+  /* This function returns the x and z values for the full Direct ray path and prints out the ray path in a text file. This is for a constant refractive index. */
+  void GetFullDirectRayPath_Cnz(double z0, double x1, double z1, double lvalueD, double A_ice_Cnz,vector <double> &x, vector <double> &z);
+
+  /* This function returns the x and z values for the full Reflected ray path and prints out the ray path in a text file. This is for a constant refractive index. */
+  void GetFullReflectedRayPath_Cnz(double z0, double x1, double z1, double lvalueR, double A_ice_Cnz,vector <double> &x, vector <double> &z);
+
   /* function for plotting and storing all the rays. This is for constant refractive index. */
   void PlotAndStoreRays_Cnz(double x0,double z0, double z1, double x1, double lvalues[2], double A_ice_Cnz);
 
   /* This is the main raytracing function. x0 always has to be zero. z0 is the Tx depth in m and z1 is the depth of the Rx in m. Both depths are negative. x1 is the distance between them. This functions works for a constant refractive index */
-  double *IceRayTracing_Cnz(double x0, double z0, double x1, double z1, double A_ice_Cnz);
+  double *IceRayTracing_Cnz(double x0, double z0, double x1, double z1, double A_ice_Cnz); 
 
-  /* The set of functions starting with the name "fDa" are used in the minimisation procedure to find the launch angle (or the L parameter) for the direct ray */
+ /* The set of functions starting with the name "fDa" are used in the minimisation procedure to find the launch angle (or the L parameter) for the direct ray */
   double fDa_Air(double x,void *params);
 
   /* This functions works for the Direct ray and gives you back the launch angle, receive angle and propagation time of the ray together with values of the L parameter and checkzero variable. checkzero variable checks how close the minimiser came to 0. 0 is perfect and less than 0.5 is pretty good. more than that should not be acceptable. */
@@ -205,7 +208,10 @@ namespace IceRayTracing{
   void MakeTable(double ShowerHitDistance,double zT);
 
   /* Function that calculates the interpolated value for raytracing. The rt parameter: 0 is for launch angle, 1 is for recieve angle, 2 is for propagation time, 3 is for distance */
+  
   double GetInterpolatedValue(double xR, double zR, int rtParameter);
+			      
+  void GetRayTracingSolutions(double RxDepth, double Distance, double TxDepth, double TimeRay[2], double PathRay[2], double LaunchAngle[2], double RecieveAngle[2], int IgnoreCh[2], double IncidenceAngleInIce[2],vector <double> xRay[2], vector <double> zRay[2]);
   
 }
 #endif
