@@ -5,12 +5,24 @@
 
 #include "IceRayTracing.hh"
 
+void IceRayTracing::SetA(double &A){
+  IceRayTracing::A_ice=A;
+}
+
+void IceRayTracing::SetB(double &B){
+  IceRayTracing::B_ice=B;
+}
+
+void IceRayTracing::SetC(double &C){
+  IceRayTracing::C_ice=C;
+}
+
 /* Get the value of the B parameter for the refractive index model */
 double IceRayTracing::GetB(double z){
   z=fabs(z);
   double B=0;
 
-  B=-0.43;
+  B=IceRayTracing::B_ice;
   
   // if(z<=IceRayTracing::TransitionBoundary){
   //   B=-0.5019;
@@ -26,7 +38,7 @@ double IceRayTracing::GetC(double z){
   z=fabs(z);
   double C=0;
 
-  C=0.0132;
+  C=IceRayTracing::C_ice;
  
   // if(z<=IceRayTracing::TransitionBoundary){
   //   C=0.03247;
@@ -36,6 +48,7 @@ double IceRayTracing::GetC(double z){
  
   return C;
 }
+
 
 /* Get the value of refractive index model for a given depth  */
 double IceRayTracing::Getnz(double z){

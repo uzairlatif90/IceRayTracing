@@ -47,11 +47,28 @@ namespace IceRayTracing{
   /* Set the value of the speed of light in m/s */ 
   static constexpr double c_light_ms=299792458;
   /* Set the value of the asymptotic parameter of the refractive index model */
-  static constexpr double A_ice=1.78;
+
+  static const double A_ice_def=1.78;
+  static const double B_ice_def=-0.43;
+  static const double C_ice_def=0.0132;
+
+  static double A_ice=A_ice_def;
+  static double B_ice=B_ice_def;
+  static double C_ice=C_ice_def;
   static constexpr double TransitionBoundary=0;
   // const double A_ice=1.775;
   // const double TransitionBoundary=14.9;
- 
+
+  
+ /* Get the value of the B parameter for the refractive index model */
+  void SetA(double &A);
+
+  /* Get the value of the B parameter for the refractive index model */
+  void SetB(double &B);
+  
+  /* Get the value of the C parameter for the refractive index model */
+  void SetC(double &C);
+  
   /* Get the value of the B parameter for the refractive index model */
   double GetB(double z);
   
