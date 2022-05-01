@@ -27,7 +27,7 @@ namespace IceRayTracing{
   /********Stuff for Interpolation**********/
   static vector <double> GridPositionX;
   static vector <double> GridPositionZ;
-  static vector <double> GridZValue[4];
+  static vector <double> GridZValue[5];
 
   static double GridStepSizeX_O=0.2;
   static double GridStepSizeZ_O=0.2;
@@ -219,7 +219,7 @@ namespace IceRayTracing{
   /* This functions works for the Direct ray and gives you back the launch angle, receive angle and propagation time of the ray together with values of the L parameter and checkzero variable. checkzero variable checks how close the minimiser came to 0. 0 is perfect and less than 0.5 is pretty good. more than that should not be acceptable. */
   double* GetDirectRayPar_Air(double z0, double x1, double z1);
 
-  double *GeantRayTracer(double xT, double yT, double zT, double xR, double yR, double zR);
+  double *DirectRayTracer(double xT, double yT, double zT, double xR, double yR, double zR);
   
   /* Function that makes interpolation tables for raytracing */
   void MakeTable(double ShowerHitDistance,double zT);
@@ -228,7 +228,7 @@ namespace IceRayTracing{
   
   double GetInterpolatedValue(double xR, double zR, int rtParameter);
 			      
-  void GetRayTracingSolutions(double RxDepth, double Distance, double TxDepth, double TimeRay[2], double PathRay[2], double LaunchAngle[2], double RecieveAngle[2], int IgnoreCh[2], double IncidenceAngleInIce[2],vector <double> xRay[2], vector <double> zRay[2]);
-  
+  //void GetRayTracingSolutions(double RxDepth, double Distance, double TxDepth, double TimeRay[2], double PathRay[2], double LaunchAngle[2], double RecieveAngle[2], int IgnoreCh[2], double IncidenceAngleInIce[2],vector <double> xRay[2], vector <double> zRay[2]);
+  void GetRayTracingSolutions(double RxDepth, double Distance, double TxDepth, double TimeRay[2], double PathRay[2], double LaunchAngle[2], double RecieveAngle[2], int IgnoreCh[2], double IncidenceAngleInIce[2], double A0, double frequency, double AttRay[2]);
 }
 #endif

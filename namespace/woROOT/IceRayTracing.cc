@@ -2438,7 +2438,7 @@ double* IceRayTracing::GetDirectRayPar_Air(double z0, double x1, double z1){
   return output;
 }
 
-double *IceRayTracing::GeantRayTracer(double xT, double yT, double zT, double xR, double yR, double zR){
+double *IceRayTracing::DirectRayTracer(double xT, double yT, double zT, double xR, double yR, double zR){
   double TxCor[3]={xT,yT,zT};
   double RxCor[3]={xR,yR,zR};
   
@@ -2473,7 +2473,7 @@ double *IceRayTracing::GeantRayTracer(double xT, double yT, double zT, double xR
   //cout<<" "<<endl;
   //cout<<"x0="<<x0<<" m , z0="<<z0<<" m ,x1="<<x1<<" m ,z1="<<z1<<" m "<<endl;
 
-  vector <double> OutputValues[4];
+  vector <double> OutputValues[5];
   
   if(getresults[8]!=-1000){ 
     // cout<<"*******For the Direct Ray********"<<endl;
@@ -2484,6 +2484,7 @@ double *IceRayTracing::GeantRayTracer(double xT, double yT, double zT, double xR
     OutputValues[1].push_back(getresults[8]);
     OutputValues[2].push_back(getresults[25]);
     OutputValues[3].push_back(getresults[4]*IceRayTracing::c_light_ms);
+    OutputValues[4].push_back(getresults[4]);
   }
 
   if(getresults[10]!=-1000){ 
@@ -2495,6 +2496,7 @@ double *IceRayTracing::GeantRayTracer(double xT, double yT, double zT, double xR
     OutputValues[1].push_back(getresults[10]);
     OutputValues[2].push_back(getresults[27]);
     OutputValues[3].push_back(getresults[6]*IceRayTracing::c_light_ms);
+    OutputValues[4].push_back(getresults[6]);
   }
 
   if(getresults[11]!=-1000){ 
@@ -2506,6 +2508,7 @@ double *IceRayTracing::GeantRayTracer(double xT, double yT, double zT, double xR
     OutputValues[1].push_back(getresults[11]);
     OutputValues[2].push_back(getresults[28]);
     OutputValues[3].push_back(getresults[7]*IceRayTracing::c_light_ms);
+    OutputValues[4].push_back(getresults[7]);
   }
 
   double *output=new double[4];
@@ -2524,11 +2527,13 @@ double *IceRayTracing::GeantRayTracer(double xT, double yT, double zT, double xR
     output[1]=OutputValues[1][MinValueBin];
     output[2]=OutputValues[2][MinValueBin];
     output[3]=OutputValues[3][MinValueBin];
+    output[4]=OutputValues[4][MinValueBin];
   }else{
     output[0]=-1000;
     output[1]=-1000;
     output[2]=-1000;
     output[3]=-1000;
+    output[4]=-1000;
   }
   
   delete []getresults;
@@ -2568,7 +2573,7 @@ void IceRayTracing::MakeTable(double ShowerHitDistance,double zT){
       double xR=IceRayTracing::GridStartX+IceRayTracing::GridStepSizeX_O*ix;
       double zR=IceRayTracing::GridStartZ+IceRayTracing::GridStepSizeZ_O*iz;
 
-      double *RTresults=IceRayTracing::GeantRayTracer(0, 0, zT, xR,0, zR);
+      double *RTresults=IceRayTracing::DirectRayTracer(0, 0, zT, xR,0, zR);
       if(RTresults[2]!=-1000){
 	IceRayTracing::GridPositionX.push_back(xR);
 	IceRayTracing::GridPositionZ.push_back(zR);
@@ -2685,14 +2690,16 @@ double IceRayTracing::GetInterpolatedValue(double xR, double zR, int rtParameter
   
 }
 
-void IceRayTracing::GetRayTracingSolutions(double RxDepth, double Distance, double TxDepth, double TimeRay[2], double PathRay[2], double LaunchAngle[2], double RecieveAngle[2], int IgnoreCh[2], double IncidenceAngleInIce[2],vector <double> xRay[2], vector <double> zRay[2]){
+
+void IceRayTracing::GetRayTracingSolutions(double RxDepth, double Distance, double TxDepth, double TimeRay[2], double PathRay[2], double LaunchAngle[2], double RecieveAngle[2], int IgnoreCh[2], double IncidenceAngleInIce[2], double A0, double frequency, double AttRay[2]){
   
   int DHits=0,RHits=0;
   double timeD, timeR, timeRa[2];
   double pathD, pathR, pathRa[2];
   double RangD, RangR, RangRa[2];
   double LangD, LangR, LangRa[2];
-
+  double LvalueD, LvalueR, LvalueRa[2],zmax[2];
+  double AttD, AttR, AttRa[2];
   int RayType[2];
   
   // double Distance=sqrt(pow(RxCor[0]-TxCor[0],2) + pow(RxCor[1]-TxCor[1],2));
@@ -2720,10 +2727,10 @@ void IceRayTracing::GetRayTracingSolutions(double RxDepth, double Distance, doub
   // cout<<"Recieve Angle: "<<RTresults[11]<<" deg"<<endl;
   // cout<<"Propogation Time: "<<RTresults[7]*pow(10,9)<<" ns"<<endl;
   
-  timeD=RTresults[4]*pow(10,9);
-  timeR=RTresults[5]*pow(10,9);
-  timeRa[0]=RTresults[6]*pow(10,9);
-  timeRa[1]=RTresults[7]*pow(10,9);
+  timeD=RTresults[4];//*pow(10,9);
+  timeR=RTresults[5];//*pow(10,9);
+  timeRa[0]=RTresults[6];//*pow(10,9);
+  timeRa[1]=RTresults[7];//*pow(10,9);
 
   pathD=RTresults[25];
   pathR=RTresults[26];
@@ -2740,6 +2747,32 @@ void IceRayTracing::GetRayTracingSolutions(double RxDepth, double Distance, doub
   LangRa[0]=RTresults[2];
   LangRa[1]=RTresults[3];
   
+  LvalueD=RTresults[19];
+  LvalueR=RTresults[20];
+  LvalueRa[0]=RTresults[21];
+  LvalueRa[1]=RTresults[22];
+
+  zmax[0]=RTresults[23];
+  zmax[1]=RTresults[24];
+
+  AttD=0;
+  AttR=0;
+  AttRa[0]=0;
+  AttRa[1]=0;
+  
+  if(RangD!=-1000){
+    AttD=1-IceRayTracing::GetTotalAttenuationDirect (A0, frequency, TxDepth, RxDepth,LvalueD);
+  }
+  if(RangR!=-1000){
+    AttR=1-IceRayTracing::GetTotalAttenuationReflected (A0, frequency, TxDepth, RxDepth,LvalueR);
+  }
+  if(RangRa[0]!=-1000){
+    AttRa[0]=1-IceRayTracing::GetTotalAttenuationRefracted (A0, frequency, TxDepth, RxDepth,zmax[0],LvalueRa[0]);
+  }
+  if(RangRa[1]!=-1000){
+    AttRa[1]=1-IceRayTracing::GetTotalAttenuationRefracted (A0, frequency, TxDepth, RxDepth,zmax[1],LvalueRa[1]);
+  }
+   
   TimeRay[0]=timeD;
   TimeRay[1]=timeR;
   
@@ -2752,6 +2785,9 @@ void IceRayTracing::GetRayTracingSolutions(double RxDepth, double Distance, doub
   LaunchAngle[0]=LangD;
   LaunchAngle[1]=LangR;
 
+  AttRay[0]=AttD;
+  AttRay[1]=AttR;
+  
   RayType[0]=1;
   RayType[1]=2;
 
@@ -2761,14 +2797,6 @@ void IceRayTracing::GetRayTracingSolutions(double RxDepth, double Distance, doub
     IncidenceAngleInIce[0]=100;
     IncidenceAngleInIce[1]=100;
   }
-
-  double lvalueD=RTresults[19];
-  double lvalueR=RTresults[20];
-  double lvalueRa[2]={RTresults[21],RTresults[22]};
-
-  double zmax[2]={0,0};
-  zmax[0]=RTresults[23];  
-  zmax[1]=RTresults[24];
   
   if(RangD!=-1000){
     TimeRay[0]=timeD;
@@ -2776,6 +2804,7 @@ void IceRayTracing::GetRayTracingSolutions(double RxDepth, double Distance, doub
     RecieveAngle[0]=RangD;
     LaunchAngle[0]=LangD;
     RayType[0]=1;
+    AttRay[0]=AttD;
   }
 
   if(RangR!=-1000){
@@ -2784,6 +2813,7 @@ void IceRayTracing::GetRayTracingSolutions(double RxDepth, double Distance, doub
     RecieveAngle[1]=RangR;
     LaunchAngle[1]=LangR;
     RayType[1]=2;
+    AttRay[1]=AttR;
   }
     
   if(RangRa[0]!=-1000 && RangD!=-1000){
@@ -2791,12 +2821,15 @@ void IceRayTracing::GetRayTracingSolutions(double RxDepth, double Distance, doub
     PathRay[0]=pathD;
     RecieveAngle[0]=RangD;
     LaunchAngle[0]=LangD;
+    RayType[0]=1;
+    AttRay[0]=AttD;
+    
     TimeRay[1]=timeRa[0];
     PathRay[1]=pathRa[0];
     RecieveAngle[1]=RangRa[0];
     LaunchAngle[1]=LangRa[0];
-    RayType[0]=1;
     RayType[1]=3;
+    AttRay[1]=AttRa[0];
   }
       
   if(RangRa[0]!=-1000 && RangR!=-1000){
@@ -2804,12 +2837,15 @@ void IceRayTracing::GetRayTracingSolutions(double RxDepth, double Distance, doub
     PathRay[1]=pathR;
     RecieveAngle[1]=RangR;
     LaunchAngle[1]=LangR;
+    RayType[1]=2;
+    AttRay[1]=AttR;
+    
     TimeRay[0]=timeRa[0];
     PathRay[0]=pathRa[0];
     RecieveAngle[0]=RangRa[0];
     LaunchAngle[0]=LangRa[0];
     RayType[0]=3;
-    RayType[1]=2;
+    AttRay[0]=AttRa[0];
   }
 
   if(RangRa[1]!=-1000 && RangD!=-1000){
@@ -2817,12 +2853,15 @@ void IceRayTracing::GetRayTracingSolutions(double RxDepth, double Distance, doub
     PathRay[0]=pathD;
     RecieveAngle[0]=RangD;
     LaunchAngle[0]=LangD;
+    RayType[0]=1;
+    AttRay[0]=AttD;
+    
     TimeRay[1]=timeRa[1];
     PathRay[1]=pathRa[1];
     RecieveAngle[1]=RangRa[1];
     LaunchAngle[1]=LangRa[1];
-    RayType[0]=1;
     RayType[1]=4;
+    AttRay[1]=AttRa[1];
   }
       
   if(RangRa[1]!=-1000 && RangR!=-1000){
@@ -2830,12 +2869,15 @@ void IceRayTracing::GetRayTracingSolutions(double RxDepth, double Distance, doub
     PathRay[1]=pathR;
     RecieveAngle[1]=RangR;
     LaunchAngle[1]=LangR;
+    RayType[1]=2;
+    AttRay[1]=AttR;
+    
     TimeRay[0]=timeRa[1];
     PathRay[0]=pathRa[1];
     RecieveAngle[0]=RangRa[1];
     LaunchAngle[0]=LangRa[1];
     RayType[0]=4;
-    RayType[1]=2;
+    AttRay[0]=AttRa[1];
   }
 
   if(RangRa[1]!=-1000 && RangRa[0]!=-1000){
@@ -2843,12 +2885,15 @@ void IceRayTracing::GetRayTracingSolutions(double RxDepth, double Distance, doub
     PathRay[1]=pathRa[1];
     RecieveAngle[1]=RangRa[1];
     LaunchAngle[1]=LangRa[1];
+    RayType[1]=4;
+    AttRay[1]=AttRa[1];
+    
     TimeRay[0]=timeRa[0];
     PathRay[0]=pathRa[0];
     RecieveAngle[0]=RangRa[0];
     LaunchAngle[0]=LangRa[0];
     RayType[0]=3;
-    RayType[1]=4;
+    AttRay[0]=AttRa[0];
   }
 
   if(RecieveAngle[1]==-1000 && RecieveAngle[0]==-1000 && RangRa[0]!=-1000){
@@ -2857,6 +2902,7 @@ void IceRayTracing::GetRayTracingSolutions(double RxDepth, double Distance, doub
     RecieveAngle[0]=RangRa[0];
     LaunchAngle[0]=LangRa[0];
     RayType[0]=3;
+    AttRay[0]=AttRa[0];
   }
 
   if(RecieveAngle[1]==-1000 && RecieveAngle[0]==-1000 && RangRa[1]!=-1000){
@@ -2865,6 +2911,7 @@ void IceRayTracing::GetRayTracingSolutions(double RxDepth, double Distance, doub
     RecieveAngle[1]=RangRa[1];
     LaunchAngle[1]=LangRa[1];
     RayType[1]=4;
+    AttRay[1]=AttRa[1];
   }
 
   IgnoreCh[0]=1;
@@ -2884,23 +2931,36 @@ void IceRayTracing::GetRayTracingSolutions(double RxDepth, double Distance, doub
     swap(TimeRay[0],TimeRay[1]);
     swap(RayType[0],RayType[1]);
     swap(PathRay[0],PathRay[1]);
+    swap(AttRay[0],AttRay[1]);
   }
+
+  //vector <double> xRay[2];
+  //vector <double> zRay[2];
   
-  for(int iray=0;iray<2;iray++){
-    if(RayType[iray]==1 && IgnoreCh[iray]!=0){
-      GetFullDirectRayPath(TxDepth,Distance,RxDepth,lvalueD,xRay[iray],zRay[iray]);
-    }
-    if(RayType[iray]==2 && IgnoreCh[iray]!=0){
-      GetFullReflectedRayPath(TxDepth,Distance,RxDepth,lvalueR,xRay[iray],zRay[iray]);
-    }
-    if(RayType[iray]==3 && IgnoreCh[iray]!=0){
-      GetFullRefractedRayPath(TxDepth,Distance,RxDepth,zmax[0],lvalueRa[0],xRay[iray],zRay[iray],1);
-    }
-    if(RayType[iray]==4 && IgnoreCh[iray]!=0){
-      GetFullRefractedRayPath(TxDepth,Distance,RxDepth,zmax[1],lvalueRa[1],xRay[iray],zRay[iray],2);
-    }
-    
-  }
+  // for(int iray=0;iray<2;iray++){
+  //   if(IgnoreCh[iray]!=0){
+  //     TGraph *gr;
+  //     if(RayType[iray]==1 ){
+  // 	gr=IceRayTracing::GetFullDirectRayPath(TxDepth,Distance,RxDepth,lvalueD);
+  //     }
+  //     if(RayType[iray]==2){
+  // 	gr=IceRayTracing::GetFullReflectedRayPath(TxDepth,Distance,RxDepth,lvalueR);
+  //     }
+  //     if(RayType[iray]==3){
+  // 	gr=IceRayTracing::GetFullRefractedRayPath(TxDepth,Distance,RxDepth,zmax[0],lvalueRa[0],1);
+  //     }
+  //     if(RayType[iray]==4){
+  // 	gr=IceRayTracing::GetFullRefractedRayPath(TxDepth,Distance,RxDepth,zmax[1],lvalueRa[1],2);
+  //     }
+  //     double x,z;
+  //     for(int ibin=0;ibin<gr->GetN();ibin++){
+  // 	gr->GetPoint(ibin,x,z);
+  // 	xRay[iray].push_back(x);
+  // 	zRay[iray].push_back(z);
+  //     }
+  //     delete gr;
+  //   }
+  // }
     
   // cout<<"inside Ray 1 "<<TimeRay[0]<<" "<<LaunchAngle[0]<<" "<<RecieveAngle[0]<<" "<<IgnoreCh[0]<<endl;
   // cout<<"inside Ray 2 "<<TimeRay[1]<<" "<<LaunchAngle[1]<<" "<<RecieveAngle[1]<<" "<<IgnoreCh[1]<<endl;
