@@ -2663,18 +2663,19 @@ void IceRayTracing::MakeTable(double ShowerHitDistance, double zT, int AntNum){
   IceRayTracing::GridStartX=ShowerHitDistance-(IceRayTracing::GridWidthX/2);
   IceRayTracing::GridStopX=ShowerHitDistance+(IceRayTracing::GridWidthX/2);
 
-  if(ShowerHitDistance<GridWidthX){
+  if(ShowerHitDistance<=IceRayTracing::GridWidthX/2){
     IceRayTracing::GridStartX=0;
-  }
+    IceRayTracing::GridStopX=20;
+  }           
 
-  // GridStartZ=Shwr_z-(GridWidthZ/2);
-  // GridStopZ=Shwr_z+(GridWidthZ/2);
-  
-  //if(GridStopZ>0){
-  IceRayTracing::GridStartZ=-20;
-  IceRayTracing::GridStopZ=0;
-    //}
-  
+  IceRayTracing::GridStartZ=zT-(IceRayTracing::GridWidthZ/2);
+  IceRayTracing::GridStopZ=zT+(IceRayTracing::GridWidthZ/2);
+
+  if(fabs(zT)<=10 || IceRayTracing::GridStopZ>0 ){
+    IceRayTracing::GridStartZ=-20;
+    IceRayTracing::GridStopZ=0;
+  }
+   
   //cout<<"Grid Variables are "<<GridStartX<<" "<<GridStartZ<<" "<<GridStopX<<" "<<GridStopZ<<" "<<GridWidthX<<" "<<TotalStepsX_O<<" "<<TotalStepsZ_O<<" "<<GridPoints<<endl;
   
   //////For recording how much time the process took

@@ -2488,8 +2488,19 @@ void IceRayTracing::MakeTable(double ShowerHitDistance,double zT){
   IceRayTracing::GridStartX=ShowerHitDistance-(IceRayTracing::GridWidthX/2);
   IceRayTracing::GridStopX=ShowerHitDistance+(IceRayTracing::GridWidthX/2);
 
-  IceRayTracing::GridStartZ=-IceRayTracing::GridWidthZ;
-  IceRayTracing::GridStopZ=0;
+  if(ShowerHitDistance<=IceRayTracing::GridWidthX/2){
+    IceRayTracing::GridStartX=0;
+    IceRayTracing::GridStopX=20;
+  }  
+  
+  IceRayTracing::GridStartZ=zT-(IceRayTracing::GridWidthZ/2);
+  IceRayTracing::GridStopZ=zT+(IceRayTracing::GridWidthZ/2);
+
+  if(fabs(zT)<=10 || IceRayTracing::GridStopZ>0 ){
+    IceRayTracing::GridStartZ=-20;
+    IceRayTracing::GridStopZ=0;
+  }
+ 
   
   //////For recording how much time the process took
   auto t1b = std::chrono::high_resolution_clock::now();  
