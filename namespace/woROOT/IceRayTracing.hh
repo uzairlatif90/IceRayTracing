@@ -222,7 +222,7 @@ namespace IceRayTracing{
   double *DirectRayTracer(double xT, double yT, double zT, double xR, double yR, double zR);
   
   /* Function that makes interpolation tables for raytracing */
-  void MakeTable(double ShowerHitDistance, double zT, int AntNum);
+  void MakeTable(double ShowerHitDistance, double ShowerDepth, double zT, int AntNum);
   
   /* Function that calculates the interpolated value for raytracing. The rt parameter: 0 is for D ray optical time, 1 is for D ray geometric path length,  2 is for D launch angle, 3 is for D recieve angle, 4 is D for ray attenuation, 5 is for R ray optical time, 6 is for R ray geometric path length,  7 is for R launch angle, 8 is for R recieve angle, 9 is R for ray attenuation */
   double GetInterpolatedValue(double xR, double zR, int rtParameter,int AntNum);

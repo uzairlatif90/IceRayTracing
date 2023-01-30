@@ -2558,7 +2558,7 @@ double *IceRayTracing::DirectRayTracer(double xT, double yT, double zT, double x
   
 }
 
-void IceRayTracing::MakeTable(double ShowerHitDistance, double zT, int AntNum){ 
+void IceRayTracing::MakeTable(double ShowerHitDistance, double ShowerDepth, double zT, int AntNum){ 
   GridZValueb[AntNum].resize(10);
   
   IceRayTracing::TotalStepsX_O=(IceRayTracing::GridWidthX/IceRayTracing::GridStepSizeX_O)+1;
@@ -2574,10 +2574,10 @@ void IceRayTracing::MakeTable(double ShowerHitDistance, double zT, int AntNum){
     IceRayTracing::GridStopX=20;
   }
 
-  IceRayTracing::GridStartZ=zT-(IceRayTracing::GridWidthZ/2);
-  IceRayTracing::GridStopZ=zT+(IceRayTracing::GridWidthZ/2);
+  IceRayTracing::GridStartZ=ShowerDepth-(IceRayTracing::GridWidthZ/2);
+  IceRayTracing::GridStopZ=ShowerDepth+(IceRayTracing::GridWidthZ/2);
 
-  if(fabs(zT)<=10 || IceRayTracing::GridStopZ>0 ){
+  if(fabs(zT)<=10 || IceRayTracing::GridStopZ>=0 ){
     IceRayTracing::GridStartZ=-20;
     IceRayTracing::GridStopZ=0;
   }
