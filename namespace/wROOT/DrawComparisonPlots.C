@@ -1,4 +1,4 @@
-#include "IceRayTracing.cc"
+#include "./SimonCR/IceRayTracing.cc"
 
 void DrawComparisonPlots(){
                                                                                              
