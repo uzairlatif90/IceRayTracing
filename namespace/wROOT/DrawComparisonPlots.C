@@ -2,9 +2,9 @@
 
 void DrawComparisonPlots(){
                                                                                              
-  double zT[2]={-100,-200};                                                                            
-  double ShowerHitDistance=100;
-  double ShowerDepth=0;
+  double zT[2]={-120,-200};                                                                            
+  double ShowerHitDistance=350;
+  double ShowerDepth=-100;
 
   IceRayTracing::GridPositionXb.resize(2);
   IceRayTracing::GridPositionZb.resize(2);
@@ -90,14 +90,28 @@ void DrawComparisonPlots(){
 	output.push_back(LaunchAngle[1]);
 	output.push_back(RecieveAngle[1]);
 	output.push_back(AttRay[1]);
+	if(IncidenceAngleInIce[1]!=100){
+	// output.push_back(sqrt(IceRayTracing::Refl_S(IncidenceAngleInIce[1]*(IceRayTracing::pi/180))));
+	// output.push_back(sqrt(IceRayTracing::Refl_P(IncidenceAngleInIce[1]*(IceRayTracing::pi/180))));
+	  output.push_back((IncidenceAngleInIce[1]));
+	// output.push_back((IncidenceAngleInIce[1]));
+	}
+	if(IncidenceAngleInIce[1]==100){
+	  output.push_back(-1000);
+	//   output.push_back(1);
+	}
+
       }else{
 	output.push_back(-1000);
 	output.push_back(-1000);
 	output.push_back(-1000);
 	output.push_back(-1000);
 	output.push_back(-1000);
+	output.push_back(-1000);
+	//output.push_back(-1000);
       }
       int rtParameter=1;
+      //int rtParameter=10;
       ////For recording how much time the process took                                           
       auto t1b = std::chrono::high_resolution_clock::now();                                      
       double NewZValue=IceRayTracing::GetInterpolatedValue(xR, zR, rtParameter,AntNum);
@@ -108,11 +122,21 @@ void DrawComparisonPlots(){
       rtresult=output[rtParameter];
       interresult=NewZValue;
 
+      //   cout<<xR<<" "<<zR<<" "<<rtresult<<" "<<interresult<<endl;
+      
       output.clear();
       
       // if(RTresults[0]>1){
       // 	rtresult=RTresults[0];
 
+      if(std::isnan(rtresult)==true){
+	rtresult=-1000;
+      }
+      
+      if(std::isnan(interresult)==true){
+	interresult=-1000;
+      }
+      
       if(rtresult!=-1000){
 	h2b->Fill(xR,zR,rtresult);
 	gr2b->SetPoint(count1,xR,zR,rtresult);
@@ -136,6 +160,9 @@ void DrawComparisonPlots(){
 	h1error->Fill(rtresult-interresult);
 	h1error_dRR->Fill((fabs(rtresult-interresult)/rtresult) *100);
 	gr2corr->SetPoint(count3,xR,zR,((rtresult-interresult)/rtresult)*100);
+	if(((rtresult-interresult)/rtresult)*100<-100){
+	  cout<<xR<<" "<<zR<<" "<<((rtresult-interresult)/rtresult)*100<<" "<<rtresult<<" "<<interresult<<" "<<IncidenceAngleInIce[1]<<endl;
+	}
 	count3++;
       }
     }
@@ -147,11 +174,13 @@ void DrawComparisonPlots(){
   gr2b->GetZaxis()->SetRangeUser(minb,gr2b->GetMaximum());
   gr2c->GetZaxis()->SetRangeUser(minc,gr2c->GetMaximum());
 
-  gr2b->SetTitle("RayTrace results for OP_Ice; Horizontal Distance (m); Depth (m); OP_Ice (m)");
-  gr2c->SetTitle("Interpolated results for OP_Ice; Horizontal Distance (m); Depth (m); OP_Ice (m)");
-  gr2corr->SetTitle("Percentage Error for OP_Ice; Horizontal Distance (m); Depth (m); |#DeltaOP_Ice|/OP_Ice x 100");
-  h1error->SetTitle("Absolute Error for OP_Ice; |#DeltaOP_Ice| (m) ; Cumulative Fraction of Tx Positions;");
-  h1error_dRR->SetTitle("Percentage Error for OP_Ice; |#DeltaOP_Ice|/OP_Ice x 100 ; Cumulative Fraction of Tx Positions;");
+  cout<<"entries are "<<gr2b->GetN()<<" "<<gr2c->GetN()<<" "<<gr2corr->GetN()<<endl;
+  
+  gr2b->SetTitle("RayTrace results for GPL_{Ice}; Horizontal Distance (m); Depth (m); GPL_{Ice} (m)");
+  gr2c->SetTitle("Interpolated results for GPL_{Ice}; Horizontal Distance (m); Depth (m); GPL_{Ice} (m)");
+  gr2corr->SetTitle("Percentage Error for GPL_{Ice}; Horizontal Distance (m); Depth (m); |#DeltaGPL_{Ice}|/GPL_{Ice} x 100");
+  h1error->SetTitle("Absolute Error for GPL_{Ice}; |#DeltaGPL| (m) ; Cumulative Fraction of Tx Positions;");
+  h1error_dRR->SetTitle("Percentage Error for GPL_{Ice}; |#DeltaGPL_{Ice}|/GPL_{Ice} x 100 ; Cumulative Fraction of Tx Positions;");
   h1->SetTitle("Time taken to do interpolation; Duration (ns) ; Interpolation calls;");
   
    TCanvas *c2a=new TCanvas("c2a","c2a");
@@ -240,11 +269,16 @@ void DrawComparisonPlots(){
   h1error_dRR_cum->Draw();
   c1->SaveAs("OP_Ice_All.png");
 
+  // TGraph *grFres=new TGraph();
+  // for(int ip=0;ip<90;ip++){
+
+  //   grFres->SetPoint(ip,ip,sqrt(IceRayTracing::Refl_P(ip*(IceRayTracing::pi/180))));
+  // }
   // TCanvas *c3=new TCanvas("c3","c3");
   // c3->cd();
   // c3->SetLogy();
   // c3->SetGridx();
   // c3->SetGridy();
-  // h1RTduration->Draw("");
+  // grFres->Draw("ALP");
                                                                                              
 }
