@@ -2750,6 +2750,10 @@ double IceRayTracing::GetInterpolatedValue(double xR, double zR, int rtParameter
 	if(f11==-1000 && f12==-1000 && f21==-1000 && f22==-1000){
 	  NewZValue=-1000;
 	}
+
+	if(std::isnan(NewZValue)==true){
+	  NewZValue=-1000;
+	}
 	
       }else{
 

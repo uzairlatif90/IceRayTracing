@@ -58,7 +58,6 @@ namespace IceRayTracing{
   static constexpr double TransitionBoundary=0;
   // const double A_ice=1.775;
   // const double TransitionBoundary=14.9;
-
   
  /* Get the value of the B parameter for the refractive index model */
   void SetA(double &A);
