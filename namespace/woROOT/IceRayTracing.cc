@@ -23,13 +23,14 @@ double IceRayTracing::GetB(double z){
   double B=0;
 
   B=IceRayTracing::B_ice;
-  
-  // if(z<=IceRayTracing::TransitionBoundary){
-  //   B=-0.5019;
-  // }else{
-  //   B=-0.448023;
-  // }
-  
+
+  if(IceRayTracing::TransitionBoundary!=0){
+    if(z<=IceRayTracing::TransitionBoundary){
+      B=-0.5019;
+    }else{
+      B=-0.448023;
+    }
+  }
   return B;
 }
 
@@ -39,13 +40,14 @@ double IceRayTracing::GetC(double z){
   double C=0;
 
   C=IceRayTracing::C_ice;
- 
-  // if(z<=IceRayTracing::TransitionBoundary){
-  //   C=0.03247;
-  // }else{
-  //   C=0.02469;
-  // }
- 
+  
+  if(IceRayTracing::TransitionBoundary!=0){
+    if(z<=IceRayTracing::TransitionBoundary){
+      C=0.03247;
+    }else{
+      C=0.02469;
+    }
+  }
   return C;
 }
 
@@ -687,6 +689,10 @@ double* IceRayTracing::GetDirectRayPar(double z0, double x1, double z1){
     z0=z1;
     z1=dsw;
   }
+
+  if(std::isnan(checkzeroD)){
+    checkzeroD=-1000;
+  }
   
   output[0]=RangD;
   output[1]=LangD;
@@ -1163,6 +1169,15 @@ double *IceRayTracing::GetRefractedRayPar(double z0, double x1 ,double z1, doubl
     dsw=z0;
     z0=z1;
     z1=dsw;
+ 
+  }
+
+  if(std::isnan(checkzeroRa[0])){
+    checkzeroRa[0]=-1000;
+  }
+
+  if(std::isnan(checkzeroRa[1])){
+    checkzeroRa[1]=-1000;
   }
   
   output[0]=RangRa[0];
@@ -1703,8 +1718,6 @@ double *IceRayTracing::IceRayTracing(double x0, double z0, double x1, double z1)
 
   /* Store the ray paths in text files */
   bool PlotRayPaths=false;
-  /* calculate the attenuation (not included yet!) */
-  bool attcal=false;
   
   double Txcor[2]={x0,z0};/* Tx positions */
   double Rxcor[2]={x1,z1};/* Rx Positions */
@@ -2559,7 +2572,7 @@ double *IceRayTracing::DirectRayTracer(double xT, double yT, double zT, double x
 }
 
 void IceRayTracing::MakeTable(double ShowerHitDistance, double ShowerDepth, double zT, int AntNum){ 
-  GridZValueb[AntNum].resize(10);
+  GridZValueb[AntNum].resize(12);
   
   IceRayTracing::TotalStepsX_O=(IceRayTracing::GridWidthX/IceRayTracing::GridStepSizeX_O)+1;
   IceRayTracing::TotalStepsZ_O=(IceRayTracing::GridWidthZ/IceRayTracing::GridStepSizeZ_O)+1;
@@ -2617,12 +2630,16 @@ void IceRayTracing::MakeTable(double ShowerHitDistance, double ShowerDepth, doub
 	GridZValueb[AntNum][2].push_back(LaunchAngle_Tx[0]);
 	GridZValueb[AntNum][3].push_back(RecieveAngle_Tx[0]);
 	GridZValueb[AntNum][4].push_back(AttRay_Tx[0]);
+	// GridZValueb[AntNum][5].push_back(Refl_S(IncidenceAngleInIce_Tx[0]));
+	// GridZValueb[AntNum][6].push_back(Refl_P(IncidenceAngleInIce_Tx[0]));
       }else{
 	GridZValueb[AntNum][0].push_back(-1000);
 	GridZValueb[AntNum][1].push_back(-1000);
 	GridZValueb[AntNum][2].push_back(-1000);
 	GridZValueb[AntNum][3].push_back(-1000);
 	GridZValueb[AntNum][4].push_back(-1000);
+	// GridZValueb[AntNum][5].push_back(-1000);
+	// GridZValueb[AntNum][6].push_back(-1000);
       }
 
       if(IgnoreCh_Tx[1]!=0){
@@ -2631,12 +2648,22 @@ void IceRayTracing::MakeTable(double ShowerHitDistance, double ShowerDepth, doub
 	GridZValueb[AntNum][7].push_back(LaunchAngle_Tx[1]);
 	GridZValueb[AntNum][8].push_back(RecieveAngle_Tx[1]);
 	GridZValueb[AntNum][9].push_back(AttRay_Tx[1]);
-      }else{
+	if(IncidenceAngleInIce_Tx[1]!=100){
+	  GridZValueb[AntNum][10].push_back(IncidenceAngleInIce_Tx[1]);
+	  //GridZValueb[AntNum][11].push_back(IncidenceAngleInIce_Tx[1]);
+	}
+	if(IncidenceAngleInIce_Tx[1]==100){
+	  GridZValueb[AntNum][10].push_back(-1000);
+	  //GridZValueb[AntNum][11].push_back(1);
+	}
+	}else{
 	GridZValueb[AntNum][5].push_back(-1000);
 	GridZValueb[AntNum][6].push_back(-1000);
 	GridZValueb[AntNum][7].push_back(-1000);
 	GridZValueb[AntNum][8].push_back(-1000);
 	GridZValueb[AntNum][9].push_back(-1000);
+	GridZValueb[AntNum][10].push_back(-1000);
+	//GridZValueb[AntNum][11].push_back(-1000);
       }
       
     }

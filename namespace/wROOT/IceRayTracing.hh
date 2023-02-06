@@ -34,7 +34,7 @@ namespace IceRayTracing{
   /********Stuff for Interpolation**********/
   static vector<vector <float>> GridPositionXb;
   static vector<vector <float>> GridPositionZb;
-  static vector<vector<vector <float>>> GridZValueb;
+  static vector<vector<vector <double>>> GridZValueb;
   
   static double GridStepSizeX_O=0.1;
   static double GridStepSizeZ_O=0.1;

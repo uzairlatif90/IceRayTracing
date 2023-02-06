@@ -25,8 +25,8 @@ using namespace std;
 namespace IceRayTracing{
 
   /********Stuff for Interpolation**********/
-  static vector<vector <double>> GridPositionXb;
-  static vector<vector <double>> GridPositionZb;
+  static vector<vector <float>> GridPositionXb;
+  static vector<vector <float>> GridPositionZb;
   static vector<vector<vector <double>>> GridZValueb;
 
   static double GridStepSizeX_O=0.1;
