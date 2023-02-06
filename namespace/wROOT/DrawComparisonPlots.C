@@ -2,9 +2,9 @@
 
 void DrawComparisonPlots(){
                                                                                              
-  double zT[2]={-120,-200};                                                                            
-  double ShowerHitDistance=350;
-  double ShowerDepth=-100;
+  double zT[2]={-150,-200};                                                                            
+  double ShowerHitDistance=100;
+  double ShowerDepth=0;
 
   IceRayTracing::GridPositionXb.resize(2);
   IceRayTracing::GridPositionZb.resize(2);
@@ -272,11 +272,13 @@ void DrawComparisonPlots(){
   // TGraph *grFres=new TGraph();
   // for(int ip=0;ip<90;ip++){
 
-  //   grFres->SetPoint(ip,ip,sqrt(IceRayTracing::Refl_P(ip*(IceRayTracing::pi/180))));
+  //   //grFres->SetPoint(ip,ip,sqrt(IceRayTracing::Refl_P(ip*(IceRayTracing::pi/180))));
+  //   grFres->SetPoint(ip,ip,IceRayTracing::GetB(-ip));
+  //   cout<<ip<<" "<<IceRayTracing::GetB(-ip)<<endl;
   // }
   // TCanvas *c3=new TCanvas("c3","c3");
   // c3->cd();
-  // c3->SetLogy();
+  // //c3->SetLogy();
   // c3->SetGridx();
   // c3->SetGridy();
   // grFres->Draw("ALP");

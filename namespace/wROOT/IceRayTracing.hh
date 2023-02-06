@@ -32,9 +32,9 @@ using namespace std;
 namespace IceRayTracing{
 
   /********Stuff for Interpolation**********/
-  static vector<vector <double>> GridPositionXb;
-  static vector<vector <double>> GridPositionZb;
-  static vector<vector<vector <double>>> GridZValueb;
+  static vector<vector <float>> GridPositionXb;
+  static vector<vector <float>> GridPositionZb;
+  static vector<vector<vector <float>>> GridZValueb;
   
   static double GridStepSizeX_O=0.1;
   static double GridStepSizeZ_O=0.1;
@@ -59,12 +59,12 @@ namespace IceRayTracing{
   static const double B_ice_def=-0.43;
   static const double C_ice_def=0.0132;
 
-  //static double A_ice=A_ice_def;
+  static double A_ice=A_ice_def;
   static double B_ice=B_ice_def;
   static double C_ice=C_ice_def;
-  //static constexpr double TransitionBoundary=0;
-  static double A_ice=1.775;
-  static constexpr double TransitionBoundary=14.9;
+  static constexpr double TransitionBoundary=0;
+  // static double A_ice=1.775;
+  // static constexpr double TransitionBoundary=14.9;
   
   /* Get the value of the B parameter for the refractive index model */
   void SetA(double &A);

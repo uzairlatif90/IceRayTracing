@@ -23,13 +23,14 @@ double IceRayTracing::GetB(double z){
   double B=0;
 
   B=IceRayTracing::B_ice;
-  
-  if(z<=IceRayTracing::TransitionBoundary){
-    B=-0.5019;
-  }else{
-    B=-0.448023;
+
+  if(IceRayTracing::TransitionBoundary!=0){
+    if(z<=IceRayTracing::TransitionBoundary){
+      B=-0.5019;
+    }else{
+      B=-0.448023;
+    }
   }
-  
   return B;
 }
 
@@ -39,13 +40,14 @@ double IceRayTracing::GetC(double z){
   double C=0;
 
   C=IceRayTracing::C_ice;
- 
-  if(z<=IceRayTracing::TransitionBoundary){
-    C=0.03247;
-  }else{
-    C=0.02469;
+
+  if(IceRayTracing::TransitionBoundary!=0){
+    if(z<=IceRayTracing::TransitionBoundary){
+      C=0.03247;
+    }else{
+      C=0.02469;
+    }
   }
- 
   return C;
 }
 
@@ -1765,8 +1767,6 @@ double *IceRayTracing::IceRayTracing(double x0, double z0, double x1, double z1)
 
   /* Store the ray paths in text files */
   bool PlotRayPaths=false;
-  /* calculate the attenuation (not included yet!) */
-  bool attcal=false;
   
   double Txcor[2]={x0,z0};/* Tx positions */
   double Rxcor[2]={x1,z1};/* Rx Positions */
