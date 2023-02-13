@@ -2682,7 +2682,7 @@ void IceRayTracing::MakeTable(double ShowerHitDistance, double ShowerDepth, doub
   IceRayTracing::GridStartZ=ShowerDepth-(IceRayTracing::GridWidthZ/2);
   IceRayTracing::GridStopZ=ShowerDepth+(IceRayTracing::GridWidthZ/2);
 
-  if(fabs(zT)<=10 || IceRayTracing::GridStopZ>=0 ){
+  if(fabs(ShowerDepth)<=10 || IceRayTracing::GridStopZ>=0 ){
     IceRayTracing::GridStartZ=-20;
     IceRayTracing::GridStopZ=0;
   }
@@ -3229,4 +3229,10 @@ void IceRayTracing::GetRayTracingSolutions(double RxDepth, double Distance, doub
     RHits++;
   }
   delete [] RTresults;
+}
+
+void IceRayTracing::SetNumberOfAntennas(int numberOfAntennas){
+  IceRayTracing::GridPositionXb.resize(numberOfAntennas);
+  IceRayTracing::GridPositionZb.resize(numberOfAntennas);
+  IceRayTracing::GridZValueb.resize(numberOfAntennas);
 }

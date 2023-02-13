@@ -229,5 +229,9 @@ namespace IceRayTracing{
 			      
   //void GetRayTracingSolutions(double RxDepth, double Distance, double TxDepth, double TimeRay[2], double PathRay[2], double LaunchAngle[2], double RecieveAngle[2], int IgnoreCh[2], double IncidenceAngleInIce[2],vector <double> xRay[2], vector <double> zRay[2]);
   void GetRayTracingSolutions(double RxDepth, double Distance, double TxDepth, double TimeRay[2], double PathRay[2], double LaunchAngle[2], double RecieveAngle[2], int IgnoreCh[2], double IncidenceAngleInIce[2], double A0, double frequency, double AttRay[2]);
+
+  // Sets the number of antennas to make a table for. Use it before making the tables.
+  void SetNumberOfAntennas(int numberOfAntennas);
+  
 }
 #endif
