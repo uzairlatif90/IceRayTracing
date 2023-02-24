@@ -925,7 +925,6 @@ bool AirToIceRayTracing::GetRayTracingSolution(double SrcHeightASL, double Horiz
   geometricalPathLengthInAir=dummy[15]*100;
   
   launchAngle=dummy[10]*(AirToIceRayTracing::pi/180);
-  cout<<"dummy10 is "<<dummy[10]<<endl;
   horizontalDistanceToIntersectionPoint=dummy[2]*100;
   transmissionCoefficientS=dummy[13];
   transmissionCoefficientP=dummy[14];
@@ -974,27 +973,33 @@ void AirToIceRayTracing::Air2IceRayTracing(double AirTxHeight, double Horizontal
   startanglelim=StraightAngle-16;
   endanglelim=StraightAngle;
 
-  if(startanglelim<90.001){
-    startanglelim=90.001;
-    ////Start opening up the angle limit range until the air minimisation function becomes undefined or gives out a nan. Then set the limits within that range.
-    bool checknan=false;
-    double TotalHorizontalDistanceinAirt=0;
-    int FilledLayerst=0;
-    while(checknan==false && startanglelim>89.9){
-      double *GetResultsAirTest1= AirToIceRayTracing::GetAirPropagationPar(startanglelim,AirTxHeight,IceLayerHeight);
-      TotalHorizontalDistanceinAirt=0;
-      FilledLayerst=GetResultsAirTest1[5*AirToIceRayTracing::MaxLayers+1];
-      for(int i=0;i<FilledLayerst;i++){
-	TotalHorizontalDistanceinAirt+=GetResultsAirTest1[0+i*5];
-      }
-      delete []GetResultsAirTest1;
+  if(AirToIceRayTracing::UseConstantRefractiveIndex==false){  
+  
+    if(startanglelim<90.001){
+      startanglelim=90.001;
+      ////Start opening up the angle limit range until the air minimisation function becomes undefined or gives out a nan. Then set the limits within that range.
+      bool checknan=false;
+      double TotalHorizontalDistanceinAirt=0;
+      int FilledLayerst=0;
+      while(checknan==false && startanglelim>89.9){
+	double *GetResultsAirTest1= AirToIceRayTracing::GetAirPropagationPar(startanglelim,AirTxHeight,IceLayerHeight);
+	TotalHorizontalDistanceinAirt=0;
+	FilledLayerst=GetResultsAirTest1[5*AirToIceRayTracing::MaxLayers+1];
+	for(int i=0;i<FilledLayerst;i++){
+	  TotalHorizontalDistanceinAirt+=GetResultsAirTest1[0+i*5];
+	}
+	delete []GetResultsAirTest1;
     
-      if((isnan(TotalHorizontalDistanceinAirt)==false && (TotalHorizontalDistanceinAirt)>0) || startanglelim>endanglelim-0.1){    
-	checknan=true;
-      }else{
-	startanglelim=startanglelim+0.05;
+	if((isnan(TotalHorizontalDistanceinAirt)==false && (TotalHorizontalDistanceinAirt)>0) || startanglelim>endanglelim-0.1){    
+	  checknan=true;
+	}else{
+	  startanglelim=startanglelim+0.05;
+	}
       }
     }
+
+  }else{
+    startanglelim=90;
   }
   
   if(endanglelim<90.001 && endanglelim>90.00){
@@ -1002,13 +1007,13 @@ void AirToIceRayTracing::Air2IceRayTracing(double AirTxHeight, double Horizontal
     endanglelim=90.05;
   }
 
-  startanglelim=90;
-  cout<<"angles are "<<startanglelim<<" "<<endanglelim<<" "<<StraightAngle<<endl;
+  
+  //cout<<"angles are "<<startanglelim<<" "<<endanglelim<<" "<<StraightAngle<<endl;
   
   //auto t1b_air = std::chrono::high_resolution_clock::now();
   ////Do the minimisation and get the value of the L parameter and the launch angle and then verify to see that the value of L that we got was actually a root of fDa function.
   double LaunchAngleAir= AirToIceRayTracing::FindFunctionRoot(F1,startanglelim,endanglelim,gsl_root_fsolver_brent,0.000000001);
-  std::cout<<"Result from the minimization: Air Launch Angle: "<<LaunchAngleAir<<" deg"<<std::endl;
+  //std::cout<<"Result from the minimization: Air Launch Angle: "<<LaunchAngleAir<<" deg"<<std::endl;
   
   double * GetResultsAir= AirToIceRayTracing::GetAirPropagationPar(LaunchAngleAir,AirTxHeight,IceLayerHeight);
 
