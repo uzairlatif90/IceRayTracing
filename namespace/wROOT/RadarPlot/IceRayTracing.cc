@@ -23,13 +23,14 @@ double IceRayTracing::GetB(double z){
   double B=0;
 
   B=IceRayTracing::B_ice;
-  
-  // if(z<=IceRayTracing::TransitionBoundary){
-  //   B=-0.5019;
-  // }else{
-  //   B=-0.448023;
-  // }
-  
+
+  if(IceRayTracing::TransitionBoundary!=0){
+    if(z<=IceRayTracing::TransitionBoundary){
+      B=-0.5019;
+    }else{
+      B=-0.448023;
+    }
+  }
   return B;
 }
 
@@ -39,13 +40,14 @@ double IceRayTracing::GetC(double z){
   double C=0;
 
   C=IceRayTracing::C_ice;
- 
-  // if(z<=IceRayTracing::TransitionBoundary){
-  //   C=0.03247;
-  // }else{
-  //   C=0.02469;
-  // }
- 
+
+  if(IceRayTracing::TransitionBoundary!=0){
+    if(z<=IceRayTracing::TransitionBoundary){
+      C=0.03247;
+    }else{
+      C=0.02469;
+    }
+  }
   return C;
 }
 
@@ -55,7 +57,7 @@ double IceRayTracing::Getnz(double z){
   return IceRayTracing::A_ice+IceRayTracing::GetB(z)*exp(-IceRayTracing::GetC(z)*z);
 }
 
-/* E-feild Power Fresnel coefficient for S-polarised wave which is perpendicular to the plane of propogation/incidence. This function gives you back the reflectance. The transmittance is T=1-R */
+/* E-feild Fresnel coefficient for S-polarised wave which is perpendicular to the plane of propogation/incidence. This function gives you back the reflection coefficient. The transmission coefficient is t=1+r */
 double IceRayTracing::Refl_S(double thetai){
 
   double Nair=1;
@@ -66,15 +68,33 @@ double IceRayTracing::Refl_S(double thetai){
   double sqterm=sqrt(1-pow((n1/n2)*(sin(thetai)),2));
   double num=n1*cos(thetai)-n2*sqterm;
   double den=n1*cos(thetai)+n2*sqterm;
-  double RS=(num*num)/(den*den);
+  double rS=(num/den);
 
-  if(std::isnan(RS)){
-    RS=1;
+  if(std::isnan(rS)){
+    rS=1;
   }
-  return (RS);
+  return (rS);
 }
 
-/* E-feild Power Fresnel coefficient for P-polarised wave which is parallel to the plane of propogation/incidence. This function gives you back the reflectance. The transmittance is T=1-R */
+double IceRayTracing::Trans_S(double thetai){
+
+  double Nair=1;
+  double Nice=IceRayTracing::Getnz(0); 
+  double n1=Nice;
+  double n2=Nair;
+  
+  double sqterm=sqrt(1-pow((n1/n2)*(sin(thetai)),2));
+  double num=n1*cos(thetai)-n2*sqterm;
+  double den=n1*cos(thetai)+n2*sqterm;
+  double tS=1+(num/den);
+
+  if(std::isnan(tS)){
+    tS=0;
+  }
+  return (tS);
+}
+
+/* E-feild Fresnel coefficient for P-polarised wave which is parallel to the plane of propogation/incidence. This function gives you back the reflection coeffient. The transmission coefficient is t=(n_1/n_2)*(1+r) */
 double IceRayTracing::Refl_P(double thetai){
    
   double Nair=1;
@@ -85,11 +105,29 @@ double IceRayTracing::Refl_P(double thetai){
   double sqterm=sqrt(1-pow((n1/n2)*(sin(thetai)),2));
   double num=n1*sqterm-n2*cos(thetai);
   double den=n1*sqterm+n2*cos(thetai);
-  double RP=(num*num)/(den*den);
-  if(std::isnan(RP)){
-    RP=1;
+  double rP=-(num)/(den);
+  if(std::isnan(rP)){
+    rP=1;
   }
-  return (RP);
+  return (rP);
+}
+
+double IceRayTracing::Trans_P(double thetai){
+   
+  double Nair=1;
+  double Nice=IceRayTracing::Getnz(0); 
+  double n1=Nice;
+  double n2=Nair;
+
+  double sqterm=sqrt(1-pow((n1/n2)*(sin(thetai)),2));
+  double num=n1*sqterm-n2*cos(thetai);
+  double den=n1*sqterm+n2*cos(thetai);
+  double tP=(1-(num/den))*(n1/n2);
+
+  if(std::isnan(tP)){
+    tP=0;
+  }
+  return (tP);
 }
 
 /* The temperature and attenuation model has been taken from AraSim which also took it from here http://icecube.wisc.edu/~araproject/radio/ . This is basically Matt Newcomb's icecube directory which has alot of information, plots and codes about South Pole Ice activities. Please read it if you find it interesting. */
@@ -684,6 +722,10 @@ double* IceRayTracing::GetDirectRayPar(double z0, double x1, double z1){
     z0=z1;
     z1=dsw;
   }
+
+  if(std::isnan(checkzeroD)){
+    checkzeroD=-1000;
+  }
   
   output[0]=RangD;
   output[1]=LangD;
@@ -1161,6 +1203,13 @@ double *IceRayTracing::GetRefractedRayPar(double z0, double x1 ,double z1, doubl
     dsw=z0;
     z0=z1;
     z1=dsw;
+  }
+
+  if(std::isnan(checkzeroRa[0])){
+    checkzeroRa[0]=-1000;
+  }
+  if(std::isnan(checkzeroD)){
+    checkzeroRa[0]=-1000;
   }
   
   output[0]=RangRa[0];
@@ -1754,8 +1803,6 @@ double *IceRayTracing::IceRayTracing(double x0, double z0, double x1, double z1)
 
   /* Store the ray paths in text files */
   bool PlotRayPaths=false;
-  /* calculate the attenuation (not included yet!) */
-  bool attcal=false;
   
   double Txcor[2]={x0,z0};/* Tx positions */
   double Rxcor[2]={x1,z1};/* Rx Positions */
@@ -2652,8 +2699,8 @@ double *IceRayTracing::DirectRayTracer(double xT, double yT, double zT, double x
 }
 
 
-void IceRayTracing::MakeTable(double ShowerHitDistance, double zT, int AntNum){ 
-  GridZValueb[AntNum].resize(10);
+void IceRayTracing::MakeTable(double ShowerHitDistance, double ShowerDepth, double zT, int AntNum){ 
+  GridZValueb[AntNum].resize(12);
   
   IceRayTracing::TotalStepsX_O=(IceRayTracing::GridWidthX/IceRayTracing::GridStepSizeX_O)+1;
   IceRayTracing::TotalStepsZ_O=(IceRayTracing::GridWidthZ/IceRayTracing::GridStepSizeZ_O)+1;
@@ -2666,16 +2713,16 @@ void IceRayTracing::MakeTable(double ShowerHitDistance, double zT, int AntNum){
   if(ShowerHitDistance<=IceRayTracing::GridWidthX/2){
     IceRayTracing::GridStartX=0;
     IceRayTracing::GridStopX=20;
-  }
+  }           
 
-  IceRayTracing::GridStartZ=zT-(IceRayTracing::GridWidthZ/2);
-  IceRayTracing::GridStopZ=zT+(IceRayTracing::GridWidthZ/2);
+  IceRayTracing::GridStartZ=ShowerDepth-(IceRayTracing::GridWidthZ/2);
+  IceRayTracing::GridStopZ=ShowerDepth+(IceRayTracing::GridWidthZ/2);
 
-  if(fabs(zT)<=10 || IceRayTracing::GridStopZ>0 ){
+  if(fabs(ShowerDepth)<=10 || IceRayTracing::GridStopZ>=0 ){
     IceRayTracing::GridStartZ=-20;
     IceRayTracing::GridStopZ=0;
   }
-  
+   
   //cout<<"Grid Variables are "<<GridStartX<<" "<<GridStartZ<<" "<<GridStopX<<" "<<GridStopZ<<" "<<GridWidthX<<" "<<TotalStepsX_O<<" "<<TotalStepsZ_O<<" "<<GridPoints<<endl;
   
   //////For recording how much time the process took
@@ -2725,12 +2772,25 @@ void IceRayTracing::MakeTable(double ShowerHitDistance, double zT, int AntNum){
 	GridZValueb[AntNum][7].push_back(LaunchAngle_Tx[1]);
 	GridZValueb[AntNum][8].push_back(RecieveAngle_Tx[1]);
 	GridZValueb[AntNum][9].push_back(AttRay_Tx[1]);
+	if(IncidenceAngleInIce_Tx[1]!=100){
+	  // GridZValueb[AntNum][10].push_back(sqrt(Refl_S(IncidenceAngleInIce_Tx[1]*(IceRayTracing::pi/180))));
+	  // GridZValueb[AntNum][11].push_back(sqrt(Refl_P(IncidenceAngleInIce_Tx[1]*(IceRayTracing::pi/180))));
+	  GridZValueb[AntNum][10].push_back(IncidenceAngleInIce_Tx[1]);
+	  // GridZValueb[AntNum][11].push_back(IncidenceAngleInIce_Tx[1]);
+	}
+	if(IncidenceAngleInIce_Tx[1]==100){
+	  GridZValueb[AntNum][10].push_back(-1000);
+	  //   GridZValueb[AntNum][11].push_back(1);
+	}
+	//cout<<xR<<" "<<zR<<" "<<IncidenceAngleInIce_Tx[1]<<" "<<Refl_S(IncidenceAngleInIce_Tx[1])<<endl;
       }else{
 	GridZValueb[AntNum][5].push_back(-1000);
 	GridZValueb[AntNum][6].push_back(-1000);
 	GridZValueb[AntNum][7].push_back(-1000);
 	GridZValueb[AntNum][8].push_back(-1000);
 	GridZValueb[AntNum][9].push_back(-1000);
+	GridZValueb[AntNum][10].push_back(-1000);
+	//GridZValueb[AntNum][11].push_back(-1000);
       }
       
     }
@@ -2815,6 +2875,10 @@ double IceRayTracing::GetInterpolatedValue(double xR, double zR, int rtParameter
 	NewZValue=sum1/sum2;
 
 	if(f11==-1000 && f12==-1000 && f21==-1000 && f22==-1000){
+	  NewZValue=-1000;
+	}
+
+	if(std::isnan(NewZValue)==true){
 	  NewZValue=-1000;
 	}
 	
@@ -3201,4 +3265,10 @@ void IceRayTracing::GetRayTracingSolutions(double RxDepth, double Distance, doub
     RHits++;
   }
   delete [] RTresults;
+}
+
+void IceRayTracing::SetNumberOfAntennas(int numberOfAntennas){
+  IceRayTracing::GridPositionXb.resize(numberOfAntennas);
+  IceRayTracing::GridPositionZb.resize(numberOfAntennas);
+  IceRayTracing::GridZValueb.resize(numberOfAntennas);
 }

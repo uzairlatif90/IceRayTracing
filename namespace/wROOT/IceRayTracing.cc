@@ -57,7 +57,7 @@ double IceRayTracing::Getnz(double z){
   return IceRayTracing::A_ice+IceRayTracing::GetB(z)*exp(-IceRayTracing::GetC(z)*z);
 }
 
-/* E-feild Power Fresnel coefficient for S-polarised wave which is perpendicular to the plane of propogation/incidence. This function gives you back the reflectance. The transmittance is T=1-R */
+/* E-feild Fresnel coefficient for S-polarised wave which is perpendicular to the plane of propogation/incidence. This function gives you back the reflection coefficient. The transmission coefficient is t=1+r */
 double IceRayTracing::Refl_S(double thetai){
 
   double Nair=1;
@@ -68,15 +68,33 @@ double IceRayTracing::Refl_S(double thetai){
   double sqterm=sqrt(1-pow((n1/n2)*(sin(thetai)),2));
   double num=n1*cos(thetai)-n2*sqterm;
   double den=n1*cos(thetai)+n2*sqterm;
-  double RS=(num*num)/(den*den);
+  double rS=(num/den);
 
-  if(std::isnan(RS)){
-    RS=1;
+  if(std::isnan(rS)){
+    rS=1;
   }
-  return (RS);
+  return (rS);
 }
 
-/* E-feild Power Fresnel coefficient for P-polarised wave which is parallel to the plane of propogation/incidence. This function gives you back the reflectance. The transmittance is T=1-R */
+double IceRayTracing::Trans_S(double thetai){
+
+  double Nair=1;
+  double Nice=IceRayTracing::Getnz(0); 
+  double n1=Nice;
+  double n2=Nair;
+  
+  double sqterm=sqrt(1-pow((n1/n2)*(sin(thetai)),2));
+  double num=n1*cos(thetai)-n2*sqterm;
+  double den=n1*cos(thetai)+n2*sqterm;
+  double tS=1+(num/den);
+
+  if(std::isnan(tS)){
+    tS=0;
+  }
+  return (tS);
+}
+
+/* E-feild Fresnel coefficient for P-polarised wave which is parallel to the plane of propogation/incidence. This function gives you back the reflection coeffient. The transmission coefficient is t=(n_1/n_2)*(1+r) */
 double IceRayTracing::Refl_P(double thetai){
    
   double Nair=1;
@@ -87,11 +105,29 @@ double IceRayTracing::Refl_P(double thetai){
   double sqterm=sqrt(1-pow((n1/n2)*(sin(thetai)),2));
   double num=n1*sqterm-n2*cos(thetai);
   double den=n1*sqterm+n2*cos(thetai);
-  double RP=(num*num)/(den*den);
-  if(std::isnan(RP)){
-    RP=1;
+  double rP=-(num)/(den);
+  if(std::isnan(rP)){
+    rP=1;
   }
-  return (RP);
+  return (rP);
+}
+
+double IceRayTracing::Trans_P(double thetai){
+   
+  double Nair=1;
+  double Nice=IceRayTracing::Getnz(0); 
+  double n1=Nice;
+  double n2=Nair;
+
+  double sqterm=sqrt(1-pow((n1/n2)*(sin(thetai)),2));
+  double num=n1*sqterm-n2*cos(thetai);
+  double den=n1*sqterm+n2*cos(thetai);
+  double tP=(1-(num/den))*(n1/n2);
+
+  if(std::isnan(tP)){
+    tP=0;
+  }
+  return (tP);
 }
 
 /* The temperature and attenuation model has been taken from AraSim which also took it from here http://icecube.wisc.edu/~araproject/radio/ . This is basically Matt Newcomb's icecube directory which has alot of information, plots and codes about South Pole Ice activities. Please read it if you find it interesting. */
