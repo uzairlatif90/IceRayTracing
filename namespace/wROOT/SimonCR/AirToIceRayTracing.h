@@ -47,10 +47,10 @@ namespace AirToIceRayTracing{
   static int MaxLayers=0;
   
   ////This Function reads in the values of ATMLAY and a,b and c parameters taken from the GDAS Atmosphere.dat file. The a,b and c values are mass overburden values and are not required in this code.
-  int readATMpar();
+  int readATMpar(std::string atmosFileName);
 
   ////This Function reads in the tavulated refractive index profile from the GDAS Atmosphere.dat file and fills in the nh_data, lognh_data and h_data vectors
-  int readnhFromFile();
+  int readnhFromFile(std::string atmosFileName);
 
   static bool UseConstantRefractiveIndex=false;
   
@@ -127,7 +127,7 @@ namespace AirToIceRayTracing{
   std::vector<double> flatten(const std::vector<std::vector<double> >& v);
 
   ////This function loads in the GDAS atmosphere file. It calls the other functions to load in the tabulated refractive index values and the sea level refractive index value from the file. It also reads the mass overburden A,B and C values from the file
-  int MakeAtmosphere();
+  int MakeAtmosphere(std::string atmosFileName);
   
   ////Get Propogation parameters for ray propagating in air
   double * GetAirPropagationPar(double LaunchAngle, double AirTxHeight, double IceLayerHeight);

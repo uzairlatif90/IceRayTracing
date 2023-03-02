@@ -18,18 +18,18 @@ double LoopStopHeight=0;
 int TotalHeightSteps=0;
 
 ////This Function reads in the values of ATMLAY and a,b and c parameters taken from the Atmosphere.dat file. The a,b and c values are mass overburden values and are not required in this code.
-int AirToIceRayTracing::readATMpar(){
+int AirToIceRayTracing::readATMpar(std::string atmosFileName){
   
   ////Open the file
-  std::ifstream ain("Atmosphere.dat");
+  std::ifstream ain(atmosFileName);
   
   int n1=0;////variable for counting total number of data points
   std::string line;
   double dummya[5]={0,0,0,0,0};////temporary variable for storing data values from the file
-  
+
   //Check if file is open and store data
   if(ain.is_open()){
-    
+
     while (getline(ain,line)){
 
       if(n1<4){////only read in the lines which contain the ATMLAY and a,b and c values in the file
@@ -38,6 +38,7 @@ int AirToIceRayTracing::readATMpar(){
       }
 
       ////Store the values in their respective arrays
+
       if(n1==0){
 	for (int i=0; i<5; i++){ AirToIceRayTracing::ATMLAY[i]=dummya[i]; }
       }    
@@ -67,14 +68,14 @@ int AirToIceRayTracing::readATMpar(){
   return 0;
 }
 
-int AirToIceRayTracing::readnhFromFile(){
+int AirToIceRayTracing::readnhFromFile(std::string atmosFileName){
 
   AirToIceRayTracing::nh_data.clear();
   AirToIceRayTracing::lognh_data.clear();
   AirToIceRayTracing::h_data.clear();
   
   ////Open the file
-  std::ifstream ain("Atmosphere.dat");
+  std::ifstream ain(atmosFileName);
   ain.precision(10); 
 
   int n1=0;////variable for counting total number of data points
@@ -271,7 +272,7 @@ double AirToIceRayTracing::Refl_S(double thetai, double IceLayerHeight){
   double den=n1*cos(thetai)+n2*sqterm;
   double rS=(num/den);
 
-  if(std::isnan(rS)){
+  if(isnan(rS)){
     rS=1;
   }
   return (rS);
@@ -289,7 +290,7 @@ double AirToIceRayTracing::Trans_S(double thetai, double IceLayerHeight){
   double den=n1*cos(thetai)+n2*sqterm;
   double tS=1+(num/den);
 
-  if(std::isnan(tS)){
+  if(isnan(tS)){
     tS=0;
   }
   return (tS);
@@ -307,7 +308,7 @@ double AirToIceRayTracing::Refl_P(double thetai, double IceLayerHeight){
   double num=n1*sqterm-n2*cos(thetai);
   double den=n1*sqterm+n2*cos(thetai);
   double rP=-(num)/(den);
-  if(std::isnan(rP)){
+  if(isnan(rP)){
     rP=1;
   }
   return (rP);
@@ -325,7 +326,7 @@ double AirToIceRayTracing::Trans_P(double thetai, double IceLayerHeight){
   double den=n1*sqterm+n2*cos(thetai);
   double tP=(1-(num/den))*(n1/n2);
 
-  if(std::isnan(tP)){
+  if(isnan(tP)){
     tP=0;
   }
   return (tP);
@@ -877,11 +878,11 @@ double AirToIceRayTracing::MinimizeforLaunchAngle(double x, void *params){
 }
 
 ///This function loads in the GDAS atmosphere file. It calls the other functions to load in the tabulated refractive index values and the sea level refractive index value from the file. It also reads the mass overburden A,B and C values from the file
-int AirToIceRayTracing::MakeAtmosphere(){
+int AirToIceRayTracing::MakeAtmosphere(std::string atmosFileName){
    
   ////Fill in the n(h) and h arrays and ATMLAY and a,b and c (these 3 are the mass overburden parameters) from the data file
-  AirToIceRayTracing::readATMpar();
-  AirToIceRayTracing::readnhFromFile();
+  AirToIceRayTracing::readATMpar(atmosFileName);
+  AirToIceRayTracing::readnhFromFile(atmosFileName);
   
   ////Flatten out the height and the refractive index std::vectors to be used for setting the up the spline interpolation.
   std::vector <double> flattened_h_data=flatten(AirToIceRayTracing::h_data);

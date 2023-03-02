@@ -21,7 +21,7 @@ void TraceAirToIce(){
   
   bool CheckSol=false;////check if solution exists or not
   
-  AirToIceRayTracing::MakeAtmosphere();
+  AirToIceRayTracing::MakeAtmosphere("Atmosphere.dat");
 
   AirToIceRayTracing::A_const=AirToIceRayTracing::Getnz_air(IceLayerHeight);
   AirToIceRayTracing::UseConstantRefractiveIndex=true;
