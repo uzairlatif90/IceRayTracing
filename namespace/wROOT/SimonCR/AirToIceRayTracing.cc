@@ -902,7 +902,7 @@ int AirToIceRayTracing::MakeAtmosphere(std::string atmosFileName){
 }
 
 ////This function uses my raw code to calculate values for CoREAS. Since its directly using the minimiser to calculate launch angles and distances it is slightly slower than its _Table version.
-bool AirToIceRayTracing::GetRayTracingSolution(double SrcHeightASL, double HorizontalDistanceToRx,double RxDepthBelowIceBoundary, double IceLayerHeight, double& opticalPathLengthInIce, double& opticalPathLengthInAir, double& geometricalPathLengthInIce, double& geometricalPathLengthInAir, double& launchAngle, double& horizontalDistanceToIntersectionPoint, double& transmissionCoefficientS, double& transmissionCoefficientP, double &RecievedAngleInIce){
+bool AirToIceRayTracing::GetRayTracingSolution(double SrcHeightASL, double HorizontalDistanceToRx,double RxDepthBelowIceBoundary, double IceLayerHeight, double& opticalPathLengthInIce, double& opticalPathLengthInAir, double& geometricalPathLengthInIce, double& geometricalPathLengthInAir, double& launchAngle, double& horizontalDistanceToIntersectionPoint, double& AngleOfIncidenceOnIce, double &RecievedAngleInIce){
   
   double AirTxHeight=SrcHeightASL/100;////Height of the source
   double HorizontalDistance=HorizontalDistanceToRx/100;////Horizontal distance
@@ -922,14 +922,13 @@ bool AirToIceRayTracing::GetRayTracingSolution(double SrcHeightASL, double Horiz
   
   opticalPathLengthInIce=dummy[5]*100;
   opticalPathLengthInAir=dummy[6]*100;
-  geometricalPathLengthInIce=dummy[16]*100;
-  geometricalPathLengthInAir=dummy[15]*100;
+  geometricalPathLengthInIce=dummy[14]*100;
+  geometricalPathLengthInAir=dummy[13]*100;
   
-  launchAngle=dummy[10]*(AirToIceRayTracing::pi/180);
+  launchAngle=dummy[10];
   horizontalDistanceToIntersectionPoint=dummy[2]*100;
-  transmissionCoefficientS=dummy[13];
-  transmissionCoefficientP=dummy[14];
-  RecievedAngleInIce=dummy[11];
+  AngleOfIncidenceOnIce=dummy[11];
+  RecievedAngleInIce=dummy[12];
   
   bool CheckSolution=false;
   double checkminimisation=dummy[1]-HorizontalDistance;
@@ -1088,7 +1087,7 @@ void AirToIceRayTracing::Air2IceRayTracing(double AirTxHeight, double Horizontal
   // std::cout<<"total time taken by the script to do solution calcuation for Ice: "<<durationb_ice<<" ns"<<std::endl;
   // std::cout<<"total time taken by the script to do solution calcuation for Air: "<<durationb_air<<" ns"<<std::endl;
   // std::cout<<" "<<std::endl;
-
+  
   dummy[0]=AirTxHeight;
   dummy[1]=(TotalHorizontalDistance);
   dummy[2]=TotalHorizontalDistanceinAir;
@@ -1102,9 +1101,7 @@ void AirToIceRayTracing::Air2IceRayTracing(double AirTxHeight, double Horizontal
   dummy[10]=LaunchAngleAir;
   dummy[11]=IncidentAngleonIce;
   dummy[12]=IncidentAngleonAntenna;
-  dummy[13]=AirToIceRayTracing::Trans_S(IncidentAngleonIce*(AirToIceRayTracing::pi/180.0), IceLayerHeight);
-  dummy[14]=AirToIceRayTracing::Trans_P(IncidentAngleonIce*(AirToIceRayTracing::pi/180.0), IceLayerHeight);
-  dummy[15]=TotalGeometricPathinAir;
-  dummy[16]=TotalGeometricPathinIce;
+  dummy[13]=TotalGeometricPathinAir;
+  dummy[14]=TotalGeometricPathinIce;
   
 }

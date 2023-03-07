@@ -140,7 +140,7 @@ namespace AirToIceRayTracing{
   double MinimizeforLaunchAngle(double x, void *params); 
  
   ////This function uses my raw code to calculate values for CoREAS. Since its directly using the minimiser to calculate launch angles and distances it is slightly slower than its _Table version.  
-  bool GetRayTracingSolution(double SrcHeightASL, double HorizontalDistanceToRx,double RxDepthBelowIceBoundary,double IceLayerHeight, double& opticalPathLengthInIce, double& opticalPathLengthInAir, double& geometricalPathLengthInIce, double& geometricalPathLengthInAir, double& launchAngle, double& horizontalDistanceToIntersectionPoint,  double& transmissionCoefficientS, double& transmissionCoefficientP, double &RecievedAngleInIce);
+  bool GetRayTracingSolution(double SrcHeightASL, double HorizontalDistanceToRx,double RxDepthBelowIceBoundary,double IceLayerHeight, double& opticalPathLengthInIce, double& opticalPathLengthInAir, double& geometricalPathLengthInIce, double& geometricalPathLengthInAir, double& launchAngle, double& horizontalDistanceToIntersectionPoint,  double& AngleOfIncidenceOnIce, double &RecievedAngleInIce);
   
   void Air2IceRayTracing(double AirTxHeight, double HorizontalDistance, double IceLayerHeight,double AntennaDepth, double StraightAngle, double dummy[20]);
   
