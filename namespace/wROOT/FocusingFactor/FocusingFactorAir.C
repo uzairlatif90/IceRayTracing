@@ -2,15 +2,13 @@
 
 void GetFocusingFactorAir(double zT, double xR, double zR, double &focusing, double focusparts[3]){
 
-  double A0=1;
-  double frequency=0.1;//Tx frequency in GHz  
-
   double distance[2]={0,0};
   double recAng[2]={0,0};
   double lauAng[2]={0,0};
   double recPos[2]={0,0};
-  double nTx= AirToIceRayTracing::Getnz_ice(zT);  // emitter
-  double nRx= AirToIceRayTracing::Getnz_air(zR); // receiver   
+  double IceLayerHeight=3000;////Height where the ice layer starts off
+  double nTx= AirToIceRayTracing::Getnz_air(zR+IceLayerHeight);  // emitter
+  double nRx= AirToIceRayTracing::Getnz_ice(zT); // receiver   
  
   double opticalPathLengthInIce;
   double opticalPathLengthInAir;
@@ -25,8 +23,8 @@ void GetFocusingFactorAir(double zT, double xR, double zR, double &focusing, dou
   
   ////All variables are in m here
   double AntennaDepth=zT;////Depth of antenna in the ice
-  double IceLayerHeight=3000;////Height where the ice layer starts off
-  double AirTxHeight=3000+zR;
+ 
+  double AirTxHeight=IceLayerHeight+zR;
   double HorizontalDistance=xR; 
   bool CheckSol1=false;////check if solution exists or not
   
@@ -37,10 +35,9 @@ void GetFocusingFactorAir(double zT, double xR, double zR, double &focusing, dou
   distance[0]=(geometricalPathLengthInIce+ geometricalPathLengthInAir)/100;
   recAng[0]=RecievedAngleInIce*(AirToIceRayTracing::pi/180);
   lauAng[0]=launchAngle*(AirToIceRayTracing::pi/180);
-  recPos[0]=zR;
-
-  AirTxHeight=3000+zR+0.01;
+  recPos[0]=zT;
   
+  AntennaDepth=zT-0.01;////Depth of antenna in the ice
   bool CheckSol2=false;////check if solution exists or not
 
   CheckSol2=AirToIceRayTracing::GetRayTracingSolution(AirTxHeight*100, HorizontalDistance*100 ,AntennaDepth*100, IceLayerHeight*100,opticalPathLengthInIce, opticalPathLengthInAir, geometricalPathLengthInIce, geometricalPathLengthInAir, launchAngle, horidist2interpnt,AngleOfIncidenceOnIce,RecievedAngleInIce);
@@ -48,13 +45,13 @@ void GetFocusingFactorAir(double zT, double xR, double zR, double &focusing, dou
   distance[1]=(geometricalPathLengthInIce+ geometricalPathLengthInAir)/100;
   recAng[1]=RecievedAngleInIce*(AirToIceRayTracing::pi/180);
   lauAng[1]=launchAngle*(AirToIceRayTracing::pi/180);
-  recPos[1]=zR+0.01;  
+  recPos[1]=zT-0.01;  
   
   if(CheckSol1!=false && CheckSol2!=false){
     focusing= sqrt( ((distance[0] / (sin(recAng[0]) * fabs( (recPos[1] - recPos[0]) / (lauAng[1] - lauAng[0]) ) ) ) * (nTx / nRx) ));
     focusparts[0]=sqrt(distance[0] / sin(recAng[0]));
     focusparts[1]=sqrt(1.0/fabs( (recPos[1] - recPos[0]) / (lauAng[1] - lauAng[0]) ));
-    focusparts[2]=sqrt((nTx / nRx));
+    focusparts[2]=sqrt(nTx / nRx);
     //cout<<"we are here "<<focusing<<" "<<focusparts[0]<<" "<<focusparts[1]<<" "<<focusparts[2]<<endl;
   }
   
@@ -65,28 +62,25 @@ void FocusingFactorAir(){
 
   AirToIceRayTracing::MakeAtmosphere("../SimonCR/Atmosphere.dat");
 
-  // AirToIceRayTracing::A_const=AirToIceRayTracing::Getnz_air(3000);
-  // AirToIceRayTracing::UseConstantRefractiveIndex=true;
-  // AirToIceRayTracing::A_air=AirToIceRayTracing::A_const;
+  AirToIceRayTracing::A_const=AirToIceRayTracing::Getnz_air(3000);
+  AirToIceRayTracing::UseConstantRefractiveIndex=true;
+  AirToIceRayTracing::A_air=AirToIceRayTracing::A_const;
   
   double xR=0;
   double zR=0;
   double zT=-50;
   
   double GridStartX=0.5;
-  double GridStopX=100.5;
+  double GridStopX=500.5;
 
-  double GridStartZ=+50.5-(100/2);
-  double GridStopZ=+50.5+(100/2);
+  double GridStartZ=0.1;//+50.5-(100/2);
+  double GridStopZ=500.1;//+50.5+(100/2);
 
   double GridStepSizeX_O=0.5;
   double GridStepSizeZ_O=0.5;
   
-  // int TotalStepsX_O=(100/GridStepSizeX_O)+1;
-  // int TotalStepsZ_O=(100/GridStepSizeZ_O)+1;
-
-  int TotalStepsX_O=(100/GridStepSizeX_O)+1;
-  int TotalStepsZ_O=(100/GridStepSizeZ_O)+1;
+  int TotalStepsX_O=(500/GridStepSizeX_O)+1;
+  int TotalStepsZ_O=(500/GridStepSizeZ_O)+1;
 
   TGraph2D *gr2A=new TGraph2D();
   TGraph2D *gr2B=new TGraph2D();
@@ -113,6 +107,9 @@ void FocusingFactorAir(){
       double xR=GridStartX+GridStepSizeX_O*ix;
       double zR=GridStartZ+GridStepSizeZ_O*iz;
 
+      // if(fabs(xR-100)<20){
+      // 	 if(fabs(zR-20)<4){
+	   // cout<<zR<<" "<<20<<endl;
       double focusing=1;
       double focusparts[3]={1,1,1};
       GetFocusingFactorAir(zT, xR, zR, focusing, focusparts);
@@ -123,6 +120,8 @@ void FocusingFactorAir(){
 	gr2D->SetPoint(count, xR,zR, focusparts[2]);
 	count++;
       }
+      // 	 }
+      // }
       
     }
   }

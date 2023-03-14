@@ -6,7 +6,7 @@ void TraceAirToIce(){
   double AntennaDepth=-100;////Depth of antenna in the ice
   double IceLayerHeight=3000;////Height where the ice layer starts off
   double AntennaNumber=0;
-  double AirTxHeight=3000.1;
+  double AirTxHeight=3000+200;
   double HorizontalDistance=100;
   
   double opticalPathLengthInIce;

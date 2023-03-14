@@ -92,7 +92,7 @@ namespace AirToIceRayTracing{
   double Trans_P(double thetai, double IceLayerHeight);
   
   ////Use GSL minimiser which uses Brent's Method to find root for a given function
-  double FindFunctionRoot(gsl_function F,double x_lo, double x_hi,const gsl_root_fsolver_type *T,double tolerance);
+  double FindFunctionRoot(gsl_function F,double x_lo, double x_hi,const gsl_root_fsolver_type *T,double tolerance, int iterations);
 
   /////Functions used for Raytracing in Ice using the analytical solution
 

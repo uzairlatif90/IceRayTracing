@@ -213,7 +213,7 @@ double AirToIceRayTracing::GetB_air(double z){
   }
   
   if(AirToIceRayTracing::UseConstantRefractiveIndex==true){
-    B=1e-9;
+    B=0;
   }
   return B;
 }
@@ -333,10 +333,10 @@ double AirToIceRayTracing::Trans_P(double thetai, double IceLayerHeight){
 }
 
 ////Use GSL minimiser which uses Brent's Method to find root for a given function
-double AirToIceRayTracing::FindFunctionRoot(gsl_function F,double x_lo, double x_hi,const gsl_root_fsolver_type *T,double tolerance)
+double AirToIceRayTracing::FindFunctionRoot(gsl_function F,double x_lo, double x_hi,const gsl_root_fsolver_type *T,double tolerance, int iterations)
 {
   int status;
-  int iter = 0, max_iter = 20;
+  int iter = 0, max_iter = iterations;
   //const gsl_root_fsolver_type *T;
   gsl_root_fsolver *s;
   double r = 0;
@@ -1012,7 +1012,7 @@ void AirToIceRayTracing::Air2IceRayTracing(double AirTxHeight, double Horizontal
   
   //auto t1b_air = std::chrono::high_resolution_clock::now();
   ////Do the minimisation and get the value of the L parameter and the launch angle and then verify to see that the value of L that we got was actually a root of fDa function.
-  double LaunchAngleAir= AirToIceRayTracing::FindFunctionRoot(F1,startanglelim,endanglelim,gsl_root_fsolver_brent,0.000000001);
+  double LaunchAngleAir= AirToIceRayTracing::FindFunctionRoot(F1,startanglelim,endanglelim,gsl_root_fsolver_bisection,0.000000001,40);
   //std::cout<<"Result from the minimization: Air Launch Angle: "<<LaunchAngleAir<<" deg"<<std::endl;
   
   double * GetResultsAir= AirToIceRayTracing::GetAirPropagationPar(LaunchAngleAir,AirTxHeight,IceLayerHeight);
