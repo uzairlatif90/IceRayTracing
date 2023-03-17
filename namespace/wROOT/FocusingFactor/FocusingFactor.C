@@ -76,16 +76,16 @@ void GetFocusingFactor(double zT, double xR, double zR, double focusing[2], doub
 void FocusingFactor(){
 
   
-  double GridStartX=0.5;
-  double GridStopX=400.5;
+  double GridStartX=300.5;
+  double GridStopX=500.5;
 
-  double GridStartZ=-50.1-(100/2);
-  double GridStopZ=-50.1+(100/2);
+  double GridStartZ=-150.1;//-50.1-(100/2);
+  double GridStopZ=-50.1;//-50.1+(100/2);
 
   double GridStepSizeX_O=0.5;
   double GridStepSizeZ_O=0.5; 
  
-  int TotalStepsX_O=(400/GridStepSizeX_O)+1;
+  int TotalStepsX_O=(100/GridStepSizeX_O)+1;
   int TotalStepsZ_O=(100/GridStepSizeZ_O)+1;
 
   TGraph2D *gr2A=new TGraph2D();
@@ -133,10 +133,10 @@ void FocusingFactor(){
 	count++;
       }
       if(std::isnan(focusing[1])==false && focusing[1]!=1){
-	gr3A->SetPoint(count, xT,zT, focusing[1]);
-	gr3B->SetPoint(count, xT,zT, focusparts[3]);
-	gr3C->SetPoint(count, xT,zT, focusparts[4]);
-	gr3D->SetPoint(count, xT,zT, focusparts[5]);
+	gr3A->SetPoint(count2, xT,zT, focusing[1]);
+	gr3B->SetPoint(count2, xT,zT, focusparts[3]);
+	gr3C->SetPoint(count2, xT,zT, focusparts[4]);
+	gr3D->SetPoint(count2, xT,zT, focusparts[5]);
 	count2++;
       }
       
