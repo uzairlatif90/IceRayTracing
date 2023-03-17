@@ -239,5 +239,7 @@ namespace IceRayTracing{
 
   // Sets the number of antennas to make a table for. Use it before making the tables.
   void SetNumberOfAntennas(int numberOfAntennas);
+
+  void GetFocusingFactor(double zT, double xR, double zR, double focusing[2]);
 }
 #endif

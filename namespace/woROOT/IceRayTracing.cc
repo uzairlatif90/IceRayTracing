@@ -2608,7 +2608,7 @@ double *IceRayTracing::DirectRayTracer(double xT, double yT, double zT, double x
 }
 
 void IceRayTracing::MakeTable(double ShowerHitDistance, double ShowerDepth, double zT, int AntNum){ 
-  GridZValueb[AntNum].resize(12);
+  GridZValueb[AntNum].resize(15);
   
   IceRayTracing::TotalStepsX_O=(IceRayTracing::GridWidthX/IceRayTracing::GridStepSizeX_O)+1;
   IceRayTracing::TotalStepsZ_O=(IceRayTracing::GridWidthZ/IceRayTracing::GridStepSizeZ_O)+1;
@@ -2656,6 +2656,17 @@ void IceRayTracing::MakeTable(double ShowerHitDistance, double ShowerDepth, doub
       double IncidenceAngleInIce_Tx[2]={0,0};
       double AttRay_Tx[2]={0,0};
       IceRayTracing::GetRayTracingSolutions(zR, xR, zT, TimeRay_Tx, PathRay_Tx, LaunchAngle_Tx, RecieveAngle_Tx, IgnoreCh_Tx, IncidenceAngleInIce_Tx, A0, frequency, AttRay_Tx);
+
+      double focusing[2]={1,1};
+      IceRayTracing::GetFocusingFactor(zT, xR, zR, focusing);
+
+      if(std::isnan(focusing[0])==true){
+	focusing[0]=1;
+      }
+
+      if(std::isnan(focusing[1])==true){
+	focusing[1]=1;
+      }
       
       GridPositionXb[AntNum][ix]=xR;
       GridPositionZb[AntNum][iz]=zR;
@@ -2666,40 +2677,37 @@ void IceRayTracing::MakeTable(double ShowerHitDistance, double ShowerDepth, doub
 	GridZValueb[AntNum][2].push_back(LaunchAngle_Tx[0]);
 	GridZValueb[AntNum][3].push_back(RecieveAngle_Tx[0]);
 	GridZValueb[AntNum][4].push_back(AttRay_Tx[0]);
-	// GridZValueb[AntNum][5].push_back(Refl_S(IncidenceAngleInIce_Tx[0]));
-	// GridZValueb[AntNum][6].push_back(Refl_P(IncidenceAngleInIce_Tx[0]));
+	GridZValueb[AntNum][5].push_back(focusing[0]);
       }else{
 	GridZValueb[AntNum][0].push_back(-1000);
 	GridZValueb[AntNum][1].push_back(-1000);
 	GridZValueb[AntNum][2].push_back(-1000);
 	GridZValueb[AntNum][3].push_back(-1000);
 	GridZValueb[AntNum][4].push_back(-1000);
-	// GridZValueb[AntNum][5].push_back(-1000);
-	// GridZValueb[AntNum][6].push_back(-1000);
+	GridZValueb[AntNum][5].push_back(-1000);
       }
 
       if(IgnoreCh_Tx[1]!=0){
-	GridZValueb[AntNum][5].push_back(TimeRay_Tx[1]);
-	GridZValueb[AntNum][6].push_back(PathRay_Tx[1]);
-	GridZValueb[AntNum][7].push_back(LaunchAngle_Tx[1]);
-	GridZValueb[AntNum][8].push_back(RecieveAngle_Tx[1]);
-	GridZValueb[AntNum][9].push_back(AttRay_Tx[1]);
+	GridZValueb[AntNum][6].push_back(TimeRay_Tx[1]);
+	GridZValueb[AntNum][7].push_back(PathRay_Tx[1]);
+	GridZValueb[AntNum][8].push_back(LaunchAngle_Tx[1]);
+	GridZValueb[AntNum][9].push_back(RecieveAngle_Tx[1]);
+	GridZValueb[AntNum][10].push_back(AttRay_Tx[1]);
+	GridZValueb[AntNum][11].push_back(focusing[1]);
 	if(IncidenceAngleInIce_Tx[1]!=100){
-	  GridZValueb[AntNum][10].push_back(IncidenceAngleInIce_Tx[1]);
-	  //GridZValueb[AntNum][11].push_back(IncidenceAngleInIce_Tx[1]);
+	  GridZValueb[AntNum][12].push_back(IncidenceAngleInIce_Tx[1]);
 	}
 	if(IncidenceAngleInIce_Tx[1]==100){
-	  GridZValueb[AntNum][10].push_back(-1000);
-	  //GridZValueb[AntNum][11].push_back(1);
+	  GridZValueb[AntNum][12].push_back(-1000);
 	}
 	}else{
-	GridZValueb[AntNum][5].push_back(-1000);
 	GridZValueb[AntNum][6].push_back(-1000);
 	GridZValueb[AntNum][7].push_back(-1000);
 	GridZValueb[AntNum][8].push_back(-1000);
 	GridZValueb[AntNum][9].push_back(-1000);
 	GridZValueb[AntNum][10].push_back(-1000);
-	//GridZValueb[AntNum][11].push_back(-1000);
+	GridZValueb[AntNum][11].push_back(-1000);
+	GridZValueb[AntNum][12].push_back(-1000);
       }
       
     }
@@ -3180,4 +3188,73 @@ void IceRayTracing::SetNumberOfAntennas(int numberOfAntennas){
   IceRayTracing::GridPositionXb.resize(numberOfAntennas);
   IceRayTracing::GridPositionZb.resize(numberOfAntennas);
   IceRayTracing::GridZValueb.resize(numberOfAntennas);
+}
+
+void IceRayTracing::GetFocusingFactor(double zT, double xR, double zR, double focusing[2]){
+
+  double A0=1;
+  double frequency=0.1;//Tx frequency in GHz  
+
+  double distance[4]={0,0,0,0};
+  double recAng[4]={0,0,0,0};
+  double lauAng[4]={0,0,0,0};
+  double recPos[4]={0,0,0,0};
+  double nTx= IceRayTracing::Getnz(zT);  // emitter
+  double nRx= IceRayTracing::Getnz(zR); // receiver  
+  
+  double TimeRay[2]={0,0};
+  double PathRay[2]={0,0};
+  double LaunchAngle[2]={0,0};
+  double RecieveAngle[2]={0,0};
+  int IgnoreCh[2]={0,0};
+  double IncidenceAngleInIce[2]={0,0};
+  double AttRay[2]={0,0};
+  IceRayTracing::GetRayTracingSolutions(zR, xR, zT, TimeRay, PathRay, LaunchAngle, RecieveAngle, IgnoreCh, IncidenceAngleInIce, A0, frequency, AttRay);
+  
+  distance[0]=PathRay[0];
+  recAng[0]=RecieveAngle[0]*(IceRayTracing::pi/180);
+  lauAng[0]=LaunchAngle[0]*(IceRayTracing::pi/180);
+  recPos[0]=zR;
+
+  distance[1]=PathRay[1];
+  recAng[1]=RecieveAngle[1]*(IceRayTracing::pi/180);
+  lauAng[1]=LaunchAngle[1]*(IceRayTracing::pi/180);
+  recPos[1]=zR;
+  
+  double TimeRayB[2]={0,0};
+  double PathRayB[2]={0,0};
+  double LaunchAngleB[2]={0,0};
+  double RecieveAngleB[2]={0,0};
+  int IgnoreChB[2]={0,0};
+  double IncidenceAngleInIceB[2]={0,0};
+  double AttRayB[2]={0,0};
+  
+  IceRayTracing::GetRayTracingSolutions(zR-0.01, xR, zT, TimeRayB, PathRayB, LaunchAngleB, RecieveAngleB, IgnoreChB, IncidenceAngleInIceB, A0, frequency, AttRayB);
+  
+  distance[2]=PathRayB[0];
+  recAng[2]=RecieveAngleB[0]*(IceRayTracing::pi/180);
+  lauAng[2]=LaunchAngleB[0]*(IceRayTracing::pi/180);
+  recPos[2]=zR-0.01;
+
+  distance[3]=PathRayB[1];
+  recAng[3]=RecieveAngleB[1]*(IceRayTracing::pi/180);
+  lauAng[3]=LaunchAngleB[1]*(IceRayTracing::pi/180);
+  recPos[3]=zR-0.01;
+
+  double focusparts[6];
+
+  if(RecieveAngle[0]!=-1000 && RecieveAngleB[0]!=-1000){
+    focusing[0]= sqrt( ((distance[0] / (sin(recAng[0]) * fabs( (recPos[2] - recPos[0]) / (lauAng[2] - lauAng[0]) ) ) ) * (nTx / nRx) ));
+    // focusparts[0]=sqrt(distance[0] / sin(recAng[0]));
+    // focusparts[1]=sqrt(1.0/fabs( (recPos[2] - recPos[0]) / (lauAng[2] - lauAng[0]) ));
+    // focusparts[2]=sqrt((nTx / nRx));
+  }
+  
+  if(RecieveAngle[1]!=-1000 && RecieveAngleB[1]!=-1000){
+    focusing[1]= sqrt( ((distance[1] /( sin(recAng[1]) * fabs( (recPos[3] - recPos[1]) / (lauAng[3] - lauAng[1]) ) ) ) * (nTx / nRx)));
+    // focusparts[3]=sqrt(distance[1] / sin(recAng[1]));
+    // focusparts[4]=sqrt(1.0/fabs( (recPos[3] - recPos[1]) / (lauAng[3] - lauAng[1]) ));
+    // focusparts[5]=sqrt((nTx / nRx));
+  }
+  
 }
