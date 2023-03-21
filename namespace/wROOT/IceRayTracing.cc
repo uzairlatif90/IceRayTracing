@@ -2699,7 +2699,7 @@ double *IceRayTracing::DirectRayTracer(double xT, double yT, double zT, double x
 }
 
 
-void IceRayTracing::MakeTable(double ShowerHitDistance, double ShowerDepth, double zT, int AntNum){ 
+void IceRayTracing::MakeTable(double ShowerHitDistance, double ShowerDepth, double zR, int AntNum){ 
   GridZValueb[AntNum].resize(15);
   
   IceRayTracing::TotalStepsX_O=(IceRayTracing::GridWidthX/IceRayTracing::GridStepSizeX_O)+1;
@@ -2734,9 +2734,9 @@ void IceRayTracing::MakeTable(double ShowerHitDistance, double ShowerDepth, doub
   for(int ix=0;ix<IceRayTracing::TotalStepsX_O;ix++){
     for(int iz=0;iz<IceRayTracing::TotalStepsZ_O;iz++){
 
-      double xR=IceRayTracing::GridStartX+IceRayTracing::GridStepSizeX_O*ix;
-      double zR=IceRayTracing::GridStartZ+IceRayTracing::GridStepSizeZ_O*iz;
-
+      double xT=IceRayTracing::GridStartX+IceRayTracing::GridStepSizeX_O*ix;
+      double zT=IceRayTracing::GridStartZ+IceRayTracing::GridStepSizeZ_O*iz;
+      
       double A0=1;
       double frequency=0.1;//Tx frequency in GHz  
   
@@ -2747,10 +2747,11 @@ void IceRayTracing::MakeTable(double ShowerHitDistance, double ShowerDepth, doub
       int IgnoreCh_Tx[2]={0,0};
       double IncidenceAngleInIce_Tx[2]={0,0};
       double AttRay_Tx[2]={0,0};
-      IceRayTracing::GetRayTracingSolutions(zR, xR, zT, TimeRay_Tx, PathRay_Tx, LaunchAngle_Tx, RecieveAngle_Tx, IgnoreCh_Tx, IncidenceAngleInIce_Tx, A0, frequency, AttRay_Tx);
+      
+      IceRayTracing::GetRayTracingSolutions(zR, xT, zT, TimeRay_Tx, PathRay_Tx, LaunchAngle_Tx, RecieveAngle_Tx, IgnoreCh_Tx, IncidenceAngleInIce_Tx, A0, frequency, AttRay_Tx);
 
       double focusing[2]={1,1};
-      IceRayTracing::GetFocusingFactor(zT, xR, zR, focusing);
+      IceRayTracing::GetFocusingFactor(zT, xT, zR, focusing);
 
       if(std::isnan(focusing[0])==true){
 	focusing[0]=1;
@@ -2760,8 +2761,8 @@ void IceRayTracing::MakeTable(double ShowerHitDistance, double ShowerDepth, doub
 	focusing[1]=1;
       }
       
-      GridPositionXb[AntNum][ix]=xR;
-      GridPositionZb[AntNum][iz]=zR;
+      GridPositionXb[AntNum][ix]=xT;
+      GridPositionZb[AntNum][iz]=zT;
 
       if(IgnoreCh_Tx[0]!=0){
 	GridZValueb[AntNum][0].push_back(TimeRay_Tx[0]);
@@ -2812,7 +2813,7 @@ void IceRayTracing::MakeTable(double ShowerHitDistance, double ShowerDepth, doub
 }
 
 
-double IceRayTracing::GetInterpolatedValue(double xR, double zR, int rtParameter,int AntNum){
+double IceRayTracing::GetInterpolatedValue(double xT, double zT, int rtParameter,int AntNum){
 
   // int MinDistBin[20];
   // double MinDist[20];
@@ -2835,11 +2836,11 @@ double IceRayTracing::GetInterpolatedValue(double xR, double zR, int rtParameter
 
   //cout<<"Grid Variables are "<<GridStartX<<" "<<GridStartZ<<" "<<GridStopX<<" "<<GridStopZ<<" "<<GridWidthX<<" "<<TotalStepsX_O<<" "<<TotalStepsZ_O<<" "<<GridPoints<<endl;
 
-  if(xR>=IceRayTracing::GridStartX && xR<=IceRayTracing::GridStopX && zR>=IceRayTracing::GridStartZ && zR<=IceRayTracing::GridStopZ ){
-    double x=xR;
-    double y=zR;
-    int minXbin=floor((xR-IceRayTracing::GridStartX)/GridStepSizeX_O);
-    int minZbin=floor(fabs(zR-IceRayTracing::GridStartZ)/GridStepSizeZ_O);
+  if(xT>=IceRayTracing::GridStartX && xT<=IceRayTracing::GridStopX && zT>=IceRayTracing::GridStartZ && zT<=IceRayTracing::GridStopZ ){
+    double x=xT;
+    double y=zT;
+    int minXbin=floor((xT-IceRayTracing::GridStartX)/GridStepSizeX_O);
+    int minZbin=floor(fabs(zT-IceRayTracing::GridStartZ)/GridStepSizeZ_O);
 
     double x1,y1,y2,x2;
     if(minXbin+1<=IceRayTracing::TotalStepsX_O-1 && minZbin+1<=IceRayTracing::TotalStepsZ_O-1){
