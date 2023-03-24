@@ -1,22 +1,5 @@
 #include "AirToIceRayTracing.h"
 
-////Store the maximum possible height allowed by GDAS tables
-double MaxAirTxHeight=0;
-////Store the minimum possible height allowed antenna tables
-double MinAirTxHeight=0;
-
-////Set the variables for the for loop that will loop over the launch angle values. All values are in degrees
-double AngleStepSize=0.1;
-double LoopStartAngle=90.1;
-double LoopStopAngle=180.0;
-int TotalAngleSteps=floor((LoopStopAngle-LoopStartAngle)/AngleStepSize)+1;
-
-////Set the variables for the for loop that will loop over the Tx height values above the ice layer. All values are in degrees
-double HeightStepSize=10;
-double LoopStartHeight=0;
-double LoopStopHeight=0;
-int TotalHeightSteps=0;
-
 ////This Function reads in the values of ATMLAY and a,b and c parameters taken from the Atmosphere.dat file. The a,b and c values are mass overburden values and are not required in this code.
 int AirToIceRayTracing::readATMpar(std::string atmosFileName){
   
