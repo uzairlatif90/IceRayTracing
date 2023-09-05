@@ -12,6 +12,7 @@ released under GPL3.
 #include <string>
 #include <algorithm>
 #include <chrono>
+#include <vector>
 
 #include <gsl/gsl_errno.h>
 #include <gsl/gsl_math.h>
