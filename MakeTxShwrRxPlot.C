@@ -105,7 +105,7 @@ void MakeTxShwrRxPlot(){
 
     if(z1<0){
     
-      Double_t CascadePropTime=((fabs(z1)/cos((90-RotationAngle)*(TMath::Pi()/180.0)))/IceRayTracing::c_light)*pow(10,9);
+      Double_t CascadePropTime=((fabs(z1)/cos((90-RotationAngle)*(TMath::Pi()/180.0)))/IceRayTracing::c_light_ms)*pow(10,9);
 	  
       if(z1==0){
 	z1=-0.01;
@@ -117,8 +117,8 @@ void MakeTxShwrRxPlot(){
       dist=fabs(x1);
       getres1=IceRayTracing::IceRayTracing(0,z0,dist,z1,false);
       
-      gr[0][idp]=IceRayTracing::GetFullDirectRayPath(z0,dist,z1,getres1[12]);
-      gr[1][idp]=IceRayTracing::GetFullReflectedRayPath(z0,dist,z1,getres1[13]);
+      gr[0][idp]=IceRayTracing::GetFullDirectRayPath(z0,dist,z1,getres1[19]);
+      gr[1][idp]=IceRayTracing::GetFullReflectedRayPath(z0,dist,z1,getres1[20]);
 
       if((getres1[9]==-1000 || getres1[8]==-1000) && getres1[10]!=-1000){  
 	gr[2][idp]=IceRayTracing::GetFullRefractedRayPath(z0,x1,z1,getres1[23],getres1[21],1);
@@ -240,8 +240,8 @@ void MakeTxShwrRxPlot(){
       dist=fabs(x1);      
       getres2=IceRayTracing::IceRayTracing(0,z0,dist,z1,false);
       
-      grB[0][idp]=IceRayTracing::GetFullDirectRayPath(z0,dist,z1,getres2[12]);
-      grB[1][idp]=IceRayTracing::GetFullReflectedRayPath(z0,dist,z1,getres2[13]);
+      grB[0][idp]=IceRayTracing::GetFullDirectRayPath(z0,dist,z1,getres2[19]);
+      grB[1][idp]=IceRayTracing::GetFullReflectedRayPath(z0,dist,z1,getres2[20]);
 
       if((getres2[9]==-1000 || getres2[8]==-1000) && getres2[10]!=-1000){  
 	grB[2][idp]=IceRayTracing::GetFullRefractedRayPath(z0,x1,z1,getres2[23],getres2[21],1);
