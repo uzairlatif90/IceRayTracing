@@ -11,7 +11,6 @@ void GridInterpolator(){
   IceRayTracing::GridZValueb.resize(TotalAntennas);
 
   int AntNum=0;
-  IceRayTracing::MakeTable(ShowerHitDistance,zT[AntNum],AntNum);
       
   double xR=55;
   double zR=-10;
@@ -26,6 +25,8 @@ void GridInterpolator(){
   double A0=1;
   double frequency=0.1;
   double AttRay[2]={0,0};
+
+  IceRayTracing::MakeTable(ShowerHitDistance,zR,zT[AntNum],AntNum);
 
   IceRayTracing::GetRayTracingSolutions(zR, xR, zT[AntNum], TimeRay, PathRay, LaunchAngle, RecieveAngle, IgnoreCh, IncidenceAngleInIce, A0, frequency, AttRay);
 

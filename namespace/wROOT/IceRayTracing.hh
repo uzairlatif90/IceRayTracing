@@ -188,7 +188,7 @@ namespace IceRayTracing{
   /* function for plotting and storing all the rays */
   void PlotAndStoreRays(double x0,double z0, double z1, double x1, double zmax[2], double lvalues[4], double checkzeroes[4]);
 
-  double *IceRayTracing(double x0, double z0, double x1, double z1);
+  double *IceRayTracing(double x0, double z0, double x1, double z1, bool PlotRayPahths);
 
   /* Analytical solution describing ray paths in ice as function of depth for constant refractive index*/
   double fDnfR_Cnz(double x,void *params);

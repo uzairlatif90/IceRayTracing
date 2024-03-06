@@ -3173,6 +3173,27 @@ void IceRayTracing::GetRayTracingSolutions(double RxDepth, double Distance, doub
     
   // cout<<"inside Ray 1 "<<TimeRay[0]<<" "<<LaunchAngle[0]<<" "<<RecieveAngle[0]<<" "<<IgnoreCh[0]<<endl;
   // cout<<"inside Ray 2 "<<TimeRay[1]<<" "<<LaunchAngle[1]<<" "<<RecieveAngle[1]<<" "<<IgnoreCh[1]<<endl;
+
+  // ####################################
+  // #### EDIT from Simon De Kockere ####
+  // For some reason, the ray tracer (i.e. the function GetRayTracingSolutions)
+  // gives travel times, path lengths and focusing factors of 0 when
+  // the emitter and receiver are on the same height, while the distance between both is <= 0.5m.
+  // I catch this issue below, and switch to straight line approximation in case this happens.
+  // Straight line approximation should be correct in this case anyways.
+  // The focusing factor is adjusted in a separate if-statement below.
+  // ####################################
+  if(RxDepth == TxDepth && TimeRay[0] == 0 && PathRay[0] == 0){
+    if(Distance == 0){ // Emitter on top of receiver, we're going to ignore this contribution
+      IgnoreCh[0] = 0; // In the convention below, IgnoreCh_Tx[0] == 0 means
+      IgnoreCh[1] = 0; // that we will ignore the contribution (set values to -1000)...
+    }
+    PathRay[0] = Distance; // The distance between emitter and receiver
+    TimeRay[0] = Distance/(IceRayTracing::c_light_ms/IceRayTracing::Getnz(TxDepth)); // Ray travel time
+    LaunchAngle[0] = 90.; // Launch angle
+    RecieveAngle[0] = 90.; // Receive angle
+    IgnoreCh[0] = 1;
+  }
   
   if(RecieveAngle[0]!=-1000){
     DHits++;
@@ -3255,6 +3276,14 @@ void IceRayTracing::GetFocusingFactor(double zT, double xR, double zR, double fo
     // focusparts[3]=sqrt(distance[1] / sin(recAng[1]));
     // focusparts[4]=sqrt(1.0/fabs( (recPos[3] - recPos[1]) / (lauAng[3] - lauAng[1]) ));
     // focusparts[5]=sqrt((nTx / nRx));
+  }
+
+  // ####################################
+  // #### EDIT from Simon De Kockere ####
+  // See comment from edit above
+  // ####################################
+  if(zR == zT && focusing[0] == 0){
+    focusing[0] = 1.;
   }
   
 }

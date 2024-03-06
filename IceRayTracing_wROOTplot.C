@@ -21,7 +21,7 @@ void IceRayTracing_wROOTplot(double xTx, double yTx, double zTx, double xRx, dou
   double x1=sqrt(pow(TxCor[0]-RxCor[0],2)+pow(TxCor[1]-RxCor[1],2));
   double z1=RxCor[2];
 
-  double * getresults=IceRayTracing::IceRayTracing(x0,z0,x1,z1);
+  double * getresults=IceRayTracing::IceRayTracing(x0,z0,x1,z1,true);
 
   cout<<"*******For the Direct Ray********"<<endl;
   cout<<"Launch Angle: "<<getresults[0]<<" deg"<<endl;

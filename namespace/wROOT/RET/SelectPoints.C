@@ -34,11 +34,11 @@ void SelectPoints(){
       cout<<iang<<endl;
       zn=z1;
       /* This function returns the x and z values for the full Refracted ray path in a TGraph */
-      grR[iang]=IceRayTracing::GetFullRefractedRayPath(z0,x1,z1,zmax,lvalueRa,zlim);
+      grR[iang]=IceRayTracing::GetFullRefractedRayPath(z0,x1,z1,zmax,lvalueRa,0);//,zlim);
     }else{
       zn=z1;
       /* This function returns the x and z values for the full Reflected ray path in a TGraph */
-      grR[iang]=IceRayTracing::GetFullReflectedRayPath(z0,x1,z1,lvalueR,zlim);
+      grR[iang]=IceRayTracing::GetFullReflectedRayPath(z0,x1,z1,lvalueR);//,zlim);
     }
     grR[iang]->SetLineColor(kBlue);
     

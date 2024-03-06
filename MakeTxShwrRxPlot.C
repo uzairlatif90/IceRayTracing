@@ -115,7 +115,7 @@ void MakeTxShwrRxPlot(){
       }
 
       dist=fabs(x1);
-      getres1=IceRayTracing(0,z0,dist,z1);
+      getres1=IceRayTracing(0,z0,dist,z1,false);
       
       gr[0][idp]=GetFullDirectRayPath(z0,dist,z1,getres1[12]);
       gr[1][idp]=GetFullReflectedRayPath(z0,dist,z1,getres1[13]);
@@ -239,7 +239,7 @@ void MakeTxShwrRxPlot(){
       }
 
       dist=fabs(x1);      
-      getres2=IceRayTracing(0,z0,dist,z1);
+      getres2=IceRayTracing(0,z0,dist,z1,false);
       
       grB[0][idp]=GetFullDirectRayPath(z0,dist,z1,getres2[12]);
       grB[1][idp]=GetFullReflectedRayPath(z0,dist,z1,getres2[13]);
