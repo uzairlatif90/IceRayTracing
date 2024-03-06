@@ -105,7 +105,7 @@ void MakeTxShwrRxPlot(){
 
     if(z1<0){
     
-      Double_t CascadePropTime=((fabs(z1)/cos((90-RotationAngle)*(TMath::Pi()/180.0)))/c_light)*pow(10,9);
+      Double_t CascadePropTime=((fabs(z1)/cos((90-RotationAngle)*(TMath::Pi()/180.0)))/IceRayTracing::c_light)*pow(10,9);
 	  
       if(z1==0){
 	z1=-0.01;
