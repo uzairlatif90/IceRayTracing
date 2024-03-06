@@ -120,24 +120,27 @@ void MakeTxShwrRxPlot(){
       gr[0][idp]=IceRayTracing::GetFullDirectRayPath(z0,dist,z1,getres1[19]);
       gr[1][idp]=IceRayTracing::GetFullReflectedRayPath(z0,dist,z1,getres1[20]);
 
+      int loopcount=2;
       if((getres1[9]==-1000 || getres1[8]==-1000) && getres1[10]!=-1000){  
 	gr[2][idp]=IceRayTracing::GetFullRefractedRayPath(z0,x1,z1,getres1[23],getres1[21],1);
+	gr[2][idp]->SetLineColor(46);
+	gr[2][idp]->SetLineWidth(2);
+	loopcount++;
 	if(getres1[11]!=-1000){ 
 	  gr[3][idp]=IceRayTracing::GetFullRefractedRayPath(z0,x1,z1,getres1[24],getres1[22],2);
+	  gr[3][idp]->SetLineColor(46);	  
+	  gr[3][idp]->SetLineWidth(2);
+	  loopcount++;
 	}
       }
 
       gr[0][idp]->SetLineColor(46);
       gr[1][idp]->SetLineColor(46);
-      gr[2][idp]->SetLineColor(46);
-      gr[3][idp]->SetLineColor(46);
 	  
       gr[0][idp]->SetLineWidth(2);
       gr[1][idp]->SetLineWidth(2);
-      gr[2][idp]->SetLineWidth(2);
-      gr[3][idp]->SetLineWidth(2);
       
-      for(Int_t ic=0;ic<4;ic++){
+      for(Int_t ic=0;ic<loopcount;ic++){
 	for(Int_t inum=0;inum<gr[ic][idp]->GetN();inum++){
 	  Double_t x,y;
 	  gr[ic][idp]->GetPoint(inum,x,y);
@@ -243,24 +246,27 @@ void MakeTxShwrRxPlot(){
       grB[0][idp]=IceRayTracing::GetFullDirectRayPath(z0,dist,z1,getres2[19]);
       grB[1][idp]=IceRayTracing::GetFullReflectedRayPath(z0,dist,z1,getres2[20]);
 
+      int loopcount=2;
       if((getres2[9]==-1000 || getres2[8]==-1000) && getres2[10]!=-1000){  
 	grB[2][idp]=IceRayTracing::GetFullRefractedRayPath(z0,x1,z1,getres2[23],getres2[21],1);
+	grB[2][idp]->SetLineColor(9);
+	grB[2][idp]->SetLineWidth(2);
+	loopcount++;
 	if(getres2[11]!=-1000){ 
 	  grB[3][idp]=IceRayTracing::GetFullRefractedRayPath(z0,x1,z1,getres2[24],getres2[22],2);
+	  grB[3][idp]->SetLineColor(9);
+	  grB[3][idp]->SetLineWidth(2);
+	  loopcount++;
 	}
       }
       
       grB[0][idp]->SetLineColor(9);
       grB[1][idp]->SetLineColor(9);
-      grB[2][idp]->SetLineColor(9);
-      grB[3][idp]->SetLineColor(9);
       
       grB[0][idp]->SetLineWidth(2);
       grB[1][idp]->SetLineWidth(2);
-      grB[2][idp]->SetLineWidth(2);
-      grB[3][idp]->SetLineWidth(2);
       
-      for(Int_t ic=0;ic<4;ic++){
+      for(Int_t ic=0;ic<loopcount;ic++){
 	for(Int_t inum=0;inum<grB[ic][idp]->GetN();inum++){
 	  Double_t x,y;
 	  grB[ic][idp]->GetPoint(inum,x,y);
