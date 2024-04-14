@@ -114,7 +114,7 @@ double IceRayTracing::Refl_P(double thetai){
 }
 
 double IceRayTracing::Trans_P(double thetai){
-   
+  
   double Nair=1;
   double Nice=IceRayTracing::Getnz(0); 
   double n1=Nice;
@@ -265,7 +265,7 @@ double IceRayTracing::FindFunctionRoot(gsl_function F,double x_lo, double x_hi)
   const gsl_root_fsolver_type *T;
   gsl_root_fsolver *s;
   double r = 0;
- 
+
   T = gsl_root_fsolver_falsepos;
   s = gsl_root_fsolver_alloc (T);
   gsl_set_error_handler_off();
@@ -291,7 +291,7 @@ double IceRayTracing::FindFunctionRoot(gsl_function F,double x_lo, double x_hi)
 	// printf ("%5d [%.7f, %.7f] %.7f %.7f\n",iter, x_lo, x_hi,r,x_hi - x_lo);
       }
     }
-  while (status == GSL_CONTINUE && iter < max_iter);
+  while (status == GSL_CONTINUE && iter < max_iter && x_lo<IceRayTracing::A_ice && x_hi<IceRayTracing::A_ice);
 
   //printf ("status = %s\n", gsl_strerror (status));
   gsl_root_fsolver_free (s);
@@ -307,7 +307,7 @@ double IceRayTracing::FindFunctionRootZmax(gsl_function F,double x_lo, double x_
   const gsl_root_fsolver_type *T;
   gsl_root_fsolver *s;
   double r = 0;
- 
+
   T = gsl_root_fsolver_falsepos;
   s = gsl_root_fsolver_alloc (T);
   gsl_set_error_handler_off();
@@ -422,30 +422,25 @@ double IceRayTracing::fDa(double x,void *params){
 
   double distancez0z1=0;
   if(IceRayTracing::TransitionBoundary!=0){
-    if (fabs(z0)>IceRayTracing::TransitionBoundary && fabs(z1)>IceRayTracing::TransitionBoundary){
+    bool SameLayer=true;
+    if (IceRayTracing::GetB(z0)==IceRayTracing::GetB(z1)){
+      SameLayer=true;
+    }else{
+      SameLayer=false;
+    }
+
+    if(SameLayer==true){
       distancez0z1=IceRayTracing::fDnfR_L(x,&params1a) - IceRayTracing::fDnfR_L(x,&params1b);
-    }
-    if (fabs(z0)>IceRayTracing::TransitionBoundary && fabs(z1)<IceRayTracing::TransitionBoundary){
-      distancez0z1=IceRayTracing::fDnfR_L(x,&params1a) - IceRayTracing::fDnfR_L(x,&params1c) + IceRayTracing::fDnfR_L(x,&params1d) - IceRayTracing::fDnfR_L(x,&params1b);
-    }
-    if (fabs(z0)<IceRayTracing::TransitionBoundary && fabs(z1)<IceRayTracing::TransitionBoundary){
-      distancez0z1=IceRayTracing::fDnfR_L(x,&params1a) - IceRayTracing::fDnfR_L(x,&params1b);
-    }
-    if (fabs(z0)==IceRayTracing::TransitionBoundary && fabs(z1)<IceRayTracing::TransitionBoundary){
-      distancez0z1=IceRayTracing::fDnfR_L(x,&params1a) - IceRayTracing::fDnfR_L(x,&params1b);
-    }
-    if (fabs(z0)==IceRayTracing::TransitionBoundary && fabs(z1)==IceRayTracing::TransitionBoundary){
-      distancez0z1=IceRayTracing::fDnfR_L(x,&params1a) - IceRayTracing::fDnfR_L(x,&params1b);
-    }
-    if (fabs(z0)>IceRayTracing::TransitionBoundary && fabs(z1)==IceRayTracing::TransitionBoundary){
+    }else{
       distancez0z1=IceRayTracing::fDnfR_L(x,&params1a) - IceRayTracing::fDnfR_L(x,&params1c) + IceRayTracing::fDnfR_L(x,&params1d) - IceRayTracing::fDnfR_L(x,&params1b);
     }
   }else{
     distancez0z1=IceRayTracing::fDnfR_L(x,&params1a) - IceRayTracing::fDnfR_L(x,&params1b);
   }
-  // if(std::isnan(distancez0z1)){
-  //   distancez0z1=1e9;
-  // }
+  /* if the distance gives a nan then give back some crazy number to keep the minimizer going*/
+  if(std::isnan(distancez0z1)){
+    distancez0z1=1e9;
+  }
   double output=distancez0z1-x1;
 
   return output;
@@ -455,7 +450,7 @@ double IceRayTracing::fDa_df(double x,void *params){
   gsl_function F;
   F.function = &IceRayTracing::fDa;
   F.params = params;
- 
+
   double result,abserr;
   gsl_deriv_central (&F, x, 1e-8, &result, &abserr);
 
@@ -484,29 +479,33 @@ double IceRayTracing::fRa(double x,void *params){
   double distancez0z1=0;
   double distancez0surface=0;
   if(IceRayTracing::TransitionBoundary!=0){
-    if (fabs(z0)>IceRayTracing::TransitionBoundary && fabs(z1)>IceRayTracing::TransitionBoundary){
+    bool SameLayer=false;
+    bool TopLayer=false;
+    bool BottomLayer=false;
+      
+    if (IceRayTracing::GetB(z0)==IceRayTracing::GetB(z1)){
+      SameLayer=true;
+      if(fabs(z0)<IceRayTracing::TransitionBoundary && fabs(z1)<IceRayTracing::TransitionBoundary){
+	TopLayer=true;
+      }	
+      if(fabs(z0)>IceRayTracing::TransitionBoundary && fabs(z1)>IceRayTracing::TransitionBoundary){
+	BottomLayer=true;
+      }
+    }
+    
+    if(SameLayer==true && TopLayer==true){
+      distancez0z1=IceRayTracing::fDnfR_L(x,&params1a) - IceRayTracing::fDnfR_L(x,&params1b);
+      distancez0surface=IceRayTracing::fDnfR_L(x,&params1c) - IceRayTracing::fDnfR_L(x,&params1b);
+    }
+
+    if(SameLayer==true && BottomLayer==true){
       distancez0z1=IceRayTracing::fDnfR_L(x,&params1a) - IceRayTracing::fDnfR_L(x,&params1b);
       distancez0surface=IceRayTracing::fDnfR_L(x,&params1c) - IceRayTracing::fDnfR_L(x,&params1d) + IceRayTracing::fDnfR_L(x,&params1f) - IceRayTracing::fDnfR_L(x,&params1b);
     }
-    if (fabs(z0)>IceRayTracing::TransitionBoundary && fabs(z1)<IceRayTracing::TransitionBoundary){
+
+    if(SameLayer==false){
       distancez0z1=IceRayTracing::fDnfR_L(x,&params1a) - IceRayTracing::fDnfR_L(x,&params1d) + IceRayTracing::fDnfR_L(x,&params1f) - IceRayTracing::fDnfR_L(x,&params1b);
       distancez0surface=IceRayTracing::fDnfR_L(x,&params1c) - IceRayTracing::fDnfR_L(x,&params1d) + IceRayTracing::fDnfR_L(x,&params1f) - IceRayTracing::fDnfR_L(x,&params1b);
-    }
-    if (fabs(z0)<IceRayTracing::TransitionBoundary && fabs(z1)<IceRayTracing::TransitionBoundary){
-      distancez0z1=IceRayTracing::fDnfR_L(x,&params1a) - IceRayTracing::fDnfR_L(x,&params1b);
-      distancez0surface=IceRayTracing::fDnfR_L(x,&params1c) - IceRayTracing::fDnfR_L(x,&params1b); 
-    }
-    if (fabs(z0)==IceRayTracing::TransitionBoundary && fabs(z1)<IceRayTracing::TransitionBoundary){
-      distancez0z1=IceRayTracing::fDnfR_L(x,&params1a) - IceRayTracing::fDnfR_L(x,&params1b);
-      distancez0surface=IceRayTracing::fDnfR_L(x,&params1c) - IceRayTracing::fDnfR_L(x,&params1b); 
-    }
-    if (fabs(z0)==IceRayTracing::TransitionBoundary && fabs(z1)==IceRayTracing::TransitionBoundary){
-      distancez0z1=IceRayTracing::fDnfR_L(x,&params1a) - IceRayTracing::fDnfR_L(x,&params1b);
-      distancez0surface=IceRayTracing::fDnfR_L(x,&params1c) - IceRayTracing::fDnfR_L(x,&params1b); 
-    }
-    if (fabs(z0)>IceRayTracing::TransitionBoundary && fabs(z1)==IceRayTracing::TransitionBoundary){
-      distancez0z1=IceRayTracing::fDnfR_L(x,&params1a) - IceRayTracing::fDnfR_L(x,&params1d) + IceRayTracing::fDnfR_L(x,&params1f) - IceRayTracing::fDnfR_L(x,&params1b);
-      distancez0surface=IceRayTracing::fDnfR_L(x,&params1c) - IceRayTracing::fDnfR_L(x,&params1d) + IceRayTracing::fDnfR_L(x,&params1f) - IceRayTracing::fDnfR_L(x,&params1b); 
     }
   }else{
     distancez0z1=IceRayTracing::fDnfR_L(x,&params1a) - IceRayTracing::fDnfR_L(x,&params1b);
@@ -559,7 +558,26 @@ double IceRayTracing::fRaa(double x,void *params){
     double distancez0z1=0;
     double distancez0surface=0;
     if(IceRayTracing::TransitionBoundary!=0){
-      if (fabs(z0)>IceRayTracing::TransitionBoundary && fabs(z1)>IceRayTracing::TransitionBoundary){
+      bool SameLayer=false;
+      bool TopLayer=false;
+      bool BottomLayer=false;
+      
+      if (IceRayTracing::GetB(z0)==IceRayTracing::GetB(z1)){
+	SameLayer=true;
+	if(fabs(z0)<IceRayTracing::TransitionBoundary && fabs(z1)<IceRayTracing::TransitionBoundary){
+	  TopLayer=true;
+	}	
+	if(fabs(z0)>IceRayTracing::TransitionBoundary && fabs(z1)>IceRayTracing::TransitionBoundary){
+	  BottomLayer=true;
+	}
+      }
+    
+      if(SameLayer==true && TopLayer==true){
+	distancez0z1=IceRayTracing::fDnfR_L(x,&params1a) - IceRayTracing::fDnfR_L(x,&params1b);
+	distancez0surface=IceRayTracing::fDnfR_L(x,&params1c) - IceRayTracing::fDnfR_L(x,&params1b); 
+      }
+
+      if(SameLayer==true && BottomLayer==true){
 	if(zmax<=IceRayTracing::TransitionBoundary){
 	  distancez0z1=IceRayTracing::fDnfR_L(x,&params1a) - IceRayTracing::fDnfR_L(x,&params1b);
 	  distancez0surface=IceRayTracing::fDnfR_L(x,&params1c) - IceRayTracing::fDnfR_L(x,&params1d) + IceRayTracing::fDnfR_L(x,&params1f) - IceRayTracing::fDnfR_L(x,&params1b);
@@ -568,25 +586,10 @@ double IceRayTracing::fRaa(double x,void *params){
 	  distancez0surface=IceRayTracing::fDnfR_L(x,&params1c) - IceRayTracing::fDnfR_L(x,&params1b);
 	}
       }
-      if (fabs(z0)>IceRayTracing::TransitionBoundary && fabs(z1)<IceRayTracing::TransitionBoundary){
+      
+      if(SameLayer==false){
 	distancez0z1=IceRayTracing::fDnfR_L(x,&params1a) - IceRayTracing::fDnfR_L(x,&params1d) + IceRayTracing::fDnfR_L(x,&params1f) - IceRayTracing::fDnfR_L(x,&params1b);
 	distancez0surface=IceRayTracing::fDnfR_L(x,&params1c) - IceRayTracing::fDnfR_L(x,&params1d) + IceRayTracing::fDnfR_L(x,&params1f) - IceRayTracing::fDnfR_L(x,&params1b);
-      }
-      if (fabs(z0)<IceRayTracing::TransitionBoundary && fabs(z1)<IceRayTracing::TransitionBoundary){
-	distancez0z1=IceRayTracing::fDnfR_L(x,&params1a) - IceRayTracing::fDnfR_L(x,&params1b);
-	distancez0surface=IceRayTracing::fDnfR_L(x,&params1c) - IceRayTracing::fDnfR_L(x,&params1b); 
-      }
-      if (fabs(z0)==IceRayTracing::TransitionBoundary && fabs(z1)<IceRayTracing::TransitionBoundary){
-	distancez0z1=IceRayTracing::fDnfR_L(x,&params1a) - IceRayTracing::fDnfR_L(x,&params1b);
-	distancez0surface=IceRayTracing::fDnfR_L(x,&params1c) - IceRayTracing::fDnfR_L(x,&params1b); 
-      }
-      if (fabs(z0)==IceRayTracing::TransitionBoundary && fabs(z1)==IceRayTracing::TransitionBoundary){
-	distancez0z1=IceRayTracing::fDnfR_L(x,&params1a) - IceRayTracing::fDnfR_L(x,&params1b);
-	distancez0surface=IceRayTracing::fDnfR_L(x,&params1c) - IceRayTracing::fDnfR_L(x,&params1b); 
-      }
-      if (fabs(z0)>IceRayTracing::TransitionBoundary && fabs(z1)==IceRayTracing::TransitionBoundary){
-	distancez0z1=IceRayTracing::fDnfR_L(x,&params1a) - IceRayTracing::fDnfR_L(x,&params1d) + IceRayTracing::fDnfR_L(x,&params1f) - IceRayTracing::fDnfR_L(x,&params1b);
-	distancez0surface=IceRayTracing::fDnfR_L(x,&params1c) - IceRayTracing::fDnfR_L(x,&params1d) + IceRayTracing::fDnfR_L(x,&params1f) - IceRayTracing::fDnfR_L(x,&params1b); 
       }
     }else{
       distancez0z1=IceRayTracing::fDnfR_L(x,&params1a) - IceRayTracing::fDnfR_L(x,&params1b);
@@ -610,7 +613,7 @@ double IceRayTracing::fRaa_df(double x,void *params){
   gsl_function F;
   F.function = &IceRayTracing::fRaa;
   F.params = params;
- 
+
   double result,abserr;
   gsl_deriv_central (&F, x, 1e-8, &result, &abserr);
 
@@ -668,27 +671,17 @@ double* IceRayTracing::GetDirectRayPar(double z0, double x1, double z1){
   double timeD=0;
   double pathD=0;
   if(IceRayTracing::TransitionBoundary!=0){
-    if (fabs(z0)>IceRayTracing::TransitionBoundary && fabs(z1)>IceRayTracing::TransitionBoundary){
+    bool SameLayer=true;
+    if (IceRayTracing::GetB(z0)==IceRayTracing::GetB(z1)){
+      SameLayer=true;
+    }else{
+      SameLayer=false;
+    }
+
+    if(SameLayer==true){
       timeD=IceRayTracing::ftimeD(-z0,&params2a) - IceRayTracing::ftimeD(-z1,&params2b);
       pathD=IceRayTracing::fpathD(-z0,&params2a) - IceRayTracing::fpathD(-z1,&params2b);
-    }
-    if (fabs(z0)>IceRayTracing::TransitionBoundary && fabs(z1)<IceRayTracing::TransitionBoundary){
-      timeD=IceRayTracing::ftimeD(-z0,&params2a) - IceRayTracing::ftimeD(IceRayTracing::TransitionBoundary+1e-7,&params2d) + IceRayTracing::ftimeD(IceRayTracing::TransitionBoundary,&params2c) - IceRayTracing::ftimeD(-z1,&params2b);
-      pathD=IceRayTracing::fpathD(-z0,&params2a) - IceRayTracing::fpathD(IceRayTracing::TransitionBoundary+1e-7,&params2d) + IceRayTracing::fpathD(IceRayTracing::TransitionBoundary,&params2c) - IceRayTracing::fpathD(-z1,&params2b);
-    }
-    if (fabs(z0)<IceRayTracing::TransitionBoundary && fabs(z1)<IceRayTracing::TransitionBoundary){
-      timeD=IceRayTracing::ftimeD(-z0,&params2a) - IceRayTracing::ftimeD(-z1,&params2b);
-      pathD=IceRayTracing::fpathD(-z0,&params2a) - IceRayTracing::fpathD(-z1,&params2b);
-    }
-    if (fabs(z0)==IceRayTracing::TransitionBoundary && fabs(z1)<IceRayTracing::TransitionBoundary){
-      timeD=IceRayTracing::ftimeD(-z0,&params2a) - IceRayTracing::ftimeD(-z1,&params2b);
-      pathD=IceRayTracing::fpathD(-z0,&params2a) - IceRayTracing::fpathD(-z1,&params2b);
-    }
-    if (fabs(z0)==IceRayTracing::TransitionBoundary && fabs(z1)==IceRayTracing::TransitionBoundary){
-      timeD=IceRayTracing::ftimeD(-z0,&params2a) - IceRayTracing::ftimeD(-z1,&params2b);
-      pathD=IceRayTracing::fpathD(-z0,&params2a) - IceRayTracing::fpathD(-z1,&params2b);
-    }
-    if (fabs(z0)>IceRayTracing::TransitionBoundary && fabs(z1)==IceRayTracing::TransitionBoundary){
+    }else{
       timeD=IceRayTracing::ftimeD(-z0,&params2a) - IceRayTracing::ftimeD(IceRayTracing::TransitionBoundary+1e-7,&params2d) + IceRayTracing::ftimeD(IceRayTracing::TransitionBoundary,&params2c) - IceRayTracing::ftimeD(-z1,&params2b);
       pathD=IceRayTracing::fpathD(-z0,&params2a) - IceRayTracing::fpathD(IceRayTracing::TransitionBoundary+1e-7,&params2d) + IceRayTracing::fpathD(IceRayTracing::TransitionBoundary,&params2c) - IceRayTracing::fpathD(-z1,&params2b);
     }
@@ -795,48 +788,42 @@ double *IceRayTracing::GetReflectedRayPar(double z0, double x1 ,double z1){
   double pathR2=0;
 
   if(IceRayTracing::TransitionBoundary!=0){
-    if (fabs(z0)>IceRayTracing::TransitionBoundary && fabs(z1)>IceRayTracing::TransitionBoundary){
+    bool SameLayer=false;
+    bool TopLayer=false;
+    bool BottomLayer=false;
+    if (IceRayTracing::GetB(z0)==IceRayTracing::GetB(z1)){
+      SameLayer=true;
+      if(fabs(z0)<IceRayTracing::TransitionBoundary && fabs(z1)<IceRayTracing::TransitionBoundary){
+	TopLayer=true;
+      }
+      if(fabs(z0)>IceRayTracing::TransitionBoundary && fabs(z1)>IceRayTracing::TransitionBoundary){
+	BottomLayer=true;
+      }
+    }
+    
+    if(SameLayer==true && TopLayer==true){
+      timeR1=IceRayTracing::ftimeD(-1e-7,&params3c) - IceRayTracing::ftimeD(z0,&params3a);
+      timeR2=IceRayTracing::ftimeD(-1e-7,&params3c) - IceRayTracing::ftimeD(z1,&params3b);
+
+      pathR1=IceRayTracing::fpathD(-1e-7,&params3c) - IceRayTracing::fpathD(z0,&params3a);
+      pathR2=IceRayTracing::fpathD(-1e-7,&params3c) - IceRayTracing::fpathD(z1,&params3b);
+    }
+
+    if(SameLayer==true && BottomLayer==true){
       timeR1=IceRayTracing::ftimeD(-1e-7,&params3c) - IceRayTracing::ftimeD(-IceRayTracing::TransitionBoundary,&params3d) + IceRayTracing::ftimeD(-(IceRayTracing::TransitionBoundary+1e-7),&params3f) - IceRayTracing::ftimeD(z0,&params3a);
       timeR2=IceRayTracing::ftimeD(-1e-7,&params3c) - IceRayTracing::ftimeD(-IceRayTracing::TransitionBoundary,&params3d) + IceRayTracing::ftimeD(-(IceRayTracing::TransitionBoundary+1e-7),&params3f) - IceRayTracing::ftimeD(z1,&params3b);
 
       pathR1=IceRayTracing::fpathD(-1e-7,&params3c) - IceRayTracing::fpathD(-IceRayTracing::TransitionBoundary,&params3d) + IceRayTracing::fpathD(-(IceRayTracing::TransitionBoundary+1e-7),&params3f) - IceRayTracing::fpathD(z0,&params3a);
       pathR2=IceRayTracing::fpathD(-1e-7,&params3c) - IceRayTracing::fpathD(-IceRayTracing::TransitionBoundary,&params3d) + IceRayTracing::fpathD(-(IceRayTracing::TransitionBoundary+1e-7),&params3f) - IceRayTracing::fpathD(z1,&params3b);
     }
-    if (fabs(z0)>IceRayTracing::TransitionBoundary && fabs(z1)<IceRayTracing::TransitionBoundary){
+    
+    if (SameLayer==false){
       timeR1=IceRayTracing::ftimeD(-1e-7,&params3c) - IceRayTracing::ftimeD(-IceRayTracing::TransitionBoundary,&params3d) + IceRayTracing::ftimeD(-(IceRayTracing::TransitionBoundary+1e-7),&params3f) - IceRayTracing::ftimeD(z0,&params3a);
       timeR2=IceRayTracing::ftimeD(-1e-7,&params3c) - IceRayTracing::ftimeD(z1,&params3b);
 
       pathR1=IceRayTracing::fpathD(-1e-7,&params3c) - IceRayTracing::fpathD(-IceRayTracing::TransitionBoundary,&params3d) + IceRayTracing::fpathD(-(IceRayTracing::TransitionBoundary+1e-7),&params3f) - IceRayTracing::fpathD(z0,&params3a);
       pathR2=IceRayTracing::fpathD(-1e-7,&params3c) - IceRayTracing::fpathD(z1,&params3b);
     }
-    if (fabs(z0)<IceRayTracing::TransitionBoundary && fabs(z1)<IceRayTracing::TransitionBoundary){
-      timeR1=IceRayTracing::ftimeD(-1e-7,&params3c) - IceRayTracing::ftimeD(z0,&params3a);
-      timeR2=IceRayTracing::ftimeD(-1e-7,&params3c) - IceRayTracing::ftimeD(z1,&params3b);
-
-      pathR1=IceRayTracing::fpathD(-1e-7,&params3c) - IceRayTracing::fpathD(z0,&params3a);
-      pathR2=IceRayTracing::fpathD(-1e-7,&params3c) - IceRayTracing::fpathD(z1,&params3b);
-    }
-    if (fabs(z0)==IceRayTracing::TransitionBoundary && fabs(z1)<IceRayTracing::TransitionBoundary){
-      timeR1=IceRayTracing::ftimeD(-1e-7,&params3c) - IceRayTracing::ftimeD(z0,&params3a);
-      timeR2=IceRayTracing::ftimeD(-1e-7,&params3c) - IceRayTracing::ftimeD(z1,&params3b);
-
-      pathR1=IceRayTracing::fpathD(-1e-7,&params3c) - IceRayTracing::fpathD(z0,&params3a);
-      pathR2=IceRayTracing::fpathD(-1e-7,&params3c) - IceRayTracing::fpathD(z1,&params3b);
-    }
-    if (fabs(z0)==IceRayTracing::TransitionBoundary && fabs(z1)==IceRayTracing::TransitionBoundary){
-      timeR1=IceRayTracing::ftimeD(-1e-7,&params3c) - IceRayTracing::ftimeD(z0,&params3a);
-      timeR2=IceRayTracing::ftimeD(-1e-7,&params3c) - IceRayTracing::ftimeD(z1,&params3b);
-
-      pathR1=IceRayTracing::fpathD(-1e-7,&params3c) - IceRayTracing::fpathD(z0,&params3a);
-      pathR2=IceRayTracing::fpathD(-1e-7,&params3c) - IceRayTracing::fpathD(z1,&params3b);
-    }
-    if (fabs(z0)>IceRayTracing::TransitionBoundary && fabs(z1)==IceRayTracing::TransitionBoundary){
-      timeR1=IceRayTracing::ftimeD(-1e-7,&params3c) - IceRayTracing::ftimeD(-IceRayTracing::TransitionBoundary,&params3d) + IceRayTracing::ftimeD(-(IceRayTracing::TransitionBoundary+1e-7),&params3f) - IceRayTracing::ftimeD(z0,&params3a);
-      timeR2=IceRayTracing::ftimeD(-1e-7,&params3c) - IceRayTracing::ftimeD(z1,&params3b);
-
-      pathR1=IceRayTracing::fpathD(-1e-7,&params3c) - IceRayTracing::fpathD(-IceRayTracing::TransitionBoundary,&params3d) + IceRayTracing::fpathD(-(IceRayTracing::TransitionBoundary+1e-7),&params3f) - IceRayTracing::fpathD(z0,&params3a);
-      pathR2=IceRayTracing::fpathD(-1e-7,&params3c) - IceRayTracing::fpathD(z1,&params3b);
-    } 
   }else{
     timeR1=IceRayTracing::ftimeD(-1e-7,&params3c) - IceRayTracing::ftimeD(z0,&params3a);
     timeR2=IceRayTracing::ftimeD(-1e-7,&params3c) - IceRayTracing::ftimeD(z1,&params3b);
@@ -1099,9 +1086,31 @@ double *IceRayTracing::GetRefractedRayPar(double z0, double x1 ,double z1, doubl
     /* This if condition checks if the function has not gone crazy and given us a turning point of the ray which is lower than both Tx and Rx and is shallower in depth than both */
     if((z0<-zmax[i] || zmax[i]<-z1)){
       /* We do the subtraction because we are measuring the time taken between the Tx and Rx positions. In the refracted case we basically have two direct rays 1) from Tx to turning point 2) from turning point to Rx. Also get the time for the two individual direct rays separately */
-     
+    
       if(IceRayTracing::TransitionBoundary!=0){
-	if (fabs(z0)>IceRayTracing::TransitionBoundary && fabs(z1)>IceRayTracing::TransitionBoundary){
+        bool SameLayer=false;
+	bool TopLayer=false;
+	bool BottomLayer=false;
+      
+	if (IceRayTracing::GetB(z0)==IceRayTracing::GetB(z1)){
+	  SameLayer=true;
+	  if(fabs(z0)<IceRayTracing::TransitionBoundary && fabs(z1)<IceRayTracing::TransitionBoundary){
+	    TopLayer=true;
+	  }	
+	  if(fabs(z0)>IceRayTracing::TransitionBoundary && fabs(z1)>IceRayTracing::TransitionBoundary){
+	    BottomLayer=true;
+	  }
+	}
+    
+	if(SameLayer==true && TopLayer==true){
+	  timeRa1[i]=IceRayTracing::ftimeD(-zmax[i],&params4c) - IceRayTracing::ftimeD(z0,&params4a);
+	  timeRa2[i]=IceRayTracing::ftimeD(-zmax[i],&params4c) - IceRayTracing::ftimeD(z1,&params4b);
+
+	  pathRa1[i]=IceRayTracing::fpathD(-zmax[i],&params4c) - IceRayTracing::fpathD(z0,&params4a);
+	  pathRa2[i]=IceRayTracing::fpathD(-zmax[i],&params4c) - IceRayTracing::fpathD(z1,&params4b);
+	}
+	
+	if(SameLayer==true && BottomLayer==true){
 	  if(zmax[i]<=IceRayTracing::TransitionBoundary){
 	    timeRa1[i]=IceRayTracing::ftimeD(-zmax[i],&params4c) - IceRayTracing::ftimeD(-IceRayTracing::TransitionBoundary,&params4d) + IceRayTracing::ftimeD(-(IceRayTracing::TransitionBoundary+1e-7),&params4f) - IceRayTracing::ftimeD(z0,&params4a);
 	    timeRa2[i]=IceRayTracing::ftimeD(-zmax[i],&params4c) - IceRayTracing::ftimeD(-IceRayTracing::TransitionBoundary,&params4d) + IceRayTracing::ftimeD(-(IceRayTracing::TransitionBoundary+1e-7),&params4f) - IceRayTracing::ftimeD(z1,&params4b);
@@ -1115,38 +1124,10 @@ double *IceRayTracing::GetRefractedRayPar(double z0, double x1 ,double z1, doubl
 
 	    pathRa1[i]=IceRayTracing::fpathD(-zmax[i],&params4c) - IceRayTracing::fpathD(z0,&params4a);
 	    pathRa2[i]=IceRayTracing::fpathD(-zmax[i],&params4c) - IceRayTracing::fpathD(z1,&params4b);
-	  }  
+	  }
 	}
-	if (fabs(z0)>IceRayTracing::TransitionBoundary && fabs(z1)<IceRayTracing::TransitionBoundary){
-	  timeRa1[i]=IceRayTracing::ftimeD(-zmax[i],&params4c) - IceRayTracing::ftimeD(-IceRayTracing::TransitionBoundary,&params4d) + IceRayTracing::ftimeD(-(IceRayTracing::TransitionBoundary+1e-7),&params4f) - IceRayTracing::ftimeD(z0,&params4a);
-	  timeRa2[i]=IceRayTracing::ftimeD(-zmax[i],&params4c) - IceRayTracing::ftimeD(z1,&params4b);
-
-	  pathRa1[i]=IceRayTracing::fpathD(-zmax[i],&params4c) - IceRayTracing::fpathD(-IceRayTracing::TransitionBoundary,&params4d) + IceRayTracing::fpathD(-(IceRayTracing::TransitionBoundary+1e-7),&params4f) - IceRayTracing::fpathD(z0,&params4a);
-	  pathRa2[i]=IceRayTracing::fpathD(-zmax[i],&params4c) - IceRayTracing::fpathD(z1,&params4b);
-
-	}
-	if (fabs(z0)<IceRayTracing::TransitionBoundary && fabs(z1)<IceRayTracing::TransitionBoundary){
-	  timeRa1[i]=IceRayTracing::ftimeD(-zmax[i],&params4c) - IceRayTracing::ftimeD(z0,&params4a);
-	  timeRa2[i]=IceRayTracing::ftimeD(-zmax[i],&params4c) - IceRayTracing::ftimeD(z1,&params4b);
-
-	  pathRa1[i]=IceRayTracing::fpathD(-zmax[i],&params4c) - IceRayTracing::fpathD(z0,&params4a);
-	  pathRa2[i]=IceRayTracing::fpathD(-zmax[i],&params4c) - IceRayTracing::fpathD(z1,&params4b);
-	} 
-	if (fabs(z0)==IceRayTracing::TransitionBoundary && fabs(z1)<IceRayTracing::TransitionBoundary){
-	  timeRa1[i]=IceRayTracing::ftimeD(-zmax[i],&params4c) - IceRayTracing::ftimeD(z0,&params4a);
-	  timeRa2[i]=IceRayTracing::ftimeD(-zmax[i],&params4c) - IceRayTracing::ftimeD(z1,&params4b);
-
-	  pathRa1[i]=IceRayTracing::fpathD(-zmax[i],&params4c) - IceRayTracing::fpathD(z0,&params4a);
-	  pathRa2[i]=IceRayTracing::fpathD(-zmax[i],&params4c) - IceRayTracing::fpathD(z1,&params4b);
-	}
-	if (fabs(z0)==IceRayTracing::TransitionBoundary && fabs(z1)==IceRayTracing::TransitionBoundary){
-	  timeRa1[i]=IceRayTracing::ftimeD(-zmax[i],&params4c) - IceRayTracing::ftimeD(z0,&params4a);
-	  timeRa2[i]=IceRayTracing::ftimeD(-zmax[i],&params4c) - IceRayTracing::ftimeD(z1,&params4b);
-
-	  pathRa1[i]=IceRayTracing::fpathD(-zmax[i],&params4c) - IceRayTracing::fpathD(z0,&params4a);
-	  pathRa2[i]=IceRayTracing::fpathD(-zmax[i],&params4c) - IceRayTracing::fpathD(z1,&params4b);
-	}
-	if (fabs(z0)>IceRayTracing::TransitionBoundary && fabs(z1)==IceRayTracing::TransitionBoundary){
+	
+	if(SameLayer==false){
 	  timeRa1[i]=IceRayTracing::ftimeD(-zmax[i],&params4c) - IceRayTracing::ftimeD(-IceRayTracing::TransitionBoundary,&params4d) + IceRayTracing::ftimeD(-(IceRayTracing::TransitionBoundary+1e-7),&params4f) - IceRayTracing::ftimeD(z0,&params4a);
 	  timeRa2[i]=IceRayTracing::ftimeD(-zmax[i],&params4c) - IceRayTracing::ftimeD(z1,&params4b);
 
@@ -1205,7 +1186,7 @@ double *IceRayTracing::GetRefractedRayPar(double z0, double x1 ,double z1, doubl
     dsw=z0;
     z0=z1;
     z1=dsw;
- 
+
   }
 
   if(std::isnan(checkzeroRa[0])){
@@ -1269,7 +1250,7 @@ void IceRayTracing::GetFullDirectRayPath(double z0, double x1, double z1,double 
     z1=dsw;
     Flip=true;
   }
-   
+  
   /* Set the name of the text files */
   //ofstream aoutD("DirectRay.txt");
 
@@ -1297,22 +1278,16 @@ void IceRayTracing::GetFullDirectRayPath(double z0, double x1, double z1,double 
     params6d = {IceRayTracing::A_ice, IceRayTracing::GetB(IceRayTracing::TransitionBoundary+1e-7), IceRayTracing::GetC(IceRayTracing::TransitionBoundary+1e-7), lvalueD};
 
     if(IceRayTracing::TransitionBoundary!=0){
-      if (fabs(z0)<IceRayTracing::TransitionBoundary && fabs(zn)<IceRayTracing::TransitionBoundary){
+      bool SameLayer=true;
+      if (IceRayTracing::GetB(z0)==IceRayTracing::GetB(zn)){
+	SameLayer=true;
+      }else{
+	SameLayer=false;
+      }
+      
+      if(SameLayer==true){
 	xn=IceRayTracing::fDnfR(zn,&params6a) - IceRayTracing::fDnfR(z0,&params6b);
-      }
-      if (fabs(z0)>IceRayTracing::TransitionBoundary && fabs(zn)<IceRayTracing::TransitionBoundary){
-	xn=IceRayTracing::fDnfR(zn,&params6a) - IceRayTracing::fDnfR(-IceRayTracing::TransitionBoundary,&params6c) + IceRayTracing::fDnfR(-(IceRayTracing::TransitionBoundary+1e-7),&params6d) - IceRayTracing::fDnfR(z0,&params6b);
-      }
-      if (fabs(z0)>IceRayTracing::TransitionBoundary && fabs(zn)>IceRayTracing::TransitionBoundary){
-	xn=IceRayTracing::fDnfR(zn,&params6a) - IceRayTracing::fDnfR(z0,&params6b);
-      }
-      if (fabs(z0)==IceRayTracing::TransitionBoundary && fabs(zn)<IceRayTracing::TransitionBoundary){
-	xn=IceRayTracing::fDnfR(zn,&params6a) - IceRayTracing::fDnfR(z0,&params6b);
-      }
-      if (fabs(z0)==IceRayTracing::TransitionBoundary && fabs(zn)==IceRayTracing::TransitionBoundary){
-	xn=IceRayTracing::fDnfR(zn,&params6a) - IceRayTracing::fDnfR(z0,&params6b);
-      }
-      if (fabs(z0)>IceRayTracing::TransitionBoundary && fabs(zn)==IceRayTracing::TransitionBoundary){
+      }else{
 	xn=IceRayTracing::fDnfR(zn,&params6a) - IceRayTracing::fDnfR(-IceRayTracing::TransitionBoundary,&params6c) + IceRayTracing::fDnfR(-(IceRayTracing::TransitionBoundary+1e-7),&params6d) - IceRayTracing::fDnfR(z0,&params6b);
       }
     }else{
@@ -1406,27 +1381,31 @@ void IceRayTracing::GetFullReflectedRayPath(double z0, double x1, double z1,doub
     double distancez0z1=0;
     double distancez0surface=0;  
     if(IceRayTracing::TransitionBoundary!=0){
-      if (fabs(z0)>IceRayTracing::TransitionBoundary && fabs(zn)>IceRayTracing::TransitionBoundary){
-	distancez0z1=IceRayTracing::fDnfR(-zn,&params6a) - IceRayTracing::fDnfR(-z0,&params6b);
-	distancez0surface=IceRayTracing::fDnfR(1e-7,&params6c) - IceRayTracing::fDnfR(IceRayTracing::TransitionBoundary,&params6d) + IceRayTracing::fDnfR(IceRayTracing::TransitionBoundary+1e-7,&params6f) - IceRayTracing::fDnfR(-z0,&params6b);
+      bool SameLayer=false;
+      bool TopLayer=false;
+      bool BottomLayer=false;
+      
+      if (IceRayTracing::GetB(z0)==IceRayTracing::GetB(zn)){
+	SameLayer=true;
+	if(fabs(z0)<IceRayTracing::TransitionBoundary && fabs(zn)<IceRayTracing::TransitionBoundary){
+	  TopLayer=true;
+	}	
+	if(fabs(z0)>IceRayTracing::TransitionBoundary && fabs(zn)>IceRayTracing::TransitionBoundary){
+	  BottomLayer=true;
+	}
       }
-      if (fabs(z0)>IceRayTracing::TransitionBoundary && fabs(zn)<IceRayTracing::TransitionBoundary){
-	distancez0z1=IceRayTracing::fDnfR(-zn,&params6a) - IceRayTracing::fDnfR(IceRayTracing::TransitionBoundary,&params6d) + IceRayTracing::fDnfR(IceRayTracing::TransitionBoundary+1e-7,&params6f) - IceRayTracing::fDnfR(-z0,&params6b);
-	distancez0surface=IceRayTracing::fDnfR(1e-7,&params6c) - IceRayTracing::fDnfR(IceRayTracing::TransitionBoundary,&params6d) + IceRayTracing::fDnfR(IceRayTracing::TransitionBoundary+1e-7,&params6f) - IceRayTracing::fDnfR(-z0,&params6b);
-      }
-      if (fabs(z0)<IceRayTracing::TransitionBoundary && fabs(zn)<IceRayTracing::TransitionBoundary){
-	distancez0z1=IceRayTracing::fDnfR(-zn,&params6a) - IceRayTracing::fDnfR(-z0,&params6b);
-	distancez0surface=IceRayTracing::fDnfR(1e-7,&params6c) - IceRayTracing::fDnfR(-z0,&params6b); 
-      }
-      if (fabs(z0)==IceRayTracing::TransitionBoundary && fabs(zn)<IceRayTracing::TransitionBoundary){
-	distancez0z1=IceRayTracing::fDnfR(-zn,&params6a) - IceRayTracing::fDnfR(-z0,&params6b);
-	distancez0surface=IceRayTracing::fDnfR(1e-7,&params6c) - IceRayTracing::fDnfR(-z0,&params6b); 
-      }
-      if (fabs(z0)==IceRayTracing::TransitionBoundary && fabs(zn)==IceRayTracing::TransitionBoundary){
+      
+      if(SameLayer==true && TopLayer==true){
 	distancez0z1=IceRayTracing::fDnfR(-zn,&params6a) - IceRayTracing::fDnfR(-z0,&params6b);
 	distancez0surface=IceRayTracing::fDnfR(1e-7,&params6c) - IceRayTracing::fDnfR(-z0,&params6b);
       }
-      if (fabs(z0)>IceRayTracing::TransitionBoundary && fabs(zn)==IceRayTracing::TransitionBoundary){
+
+      if(SameLayer==true && BottomLayer==true){
+	distancez0z1=IceRayTracing::fDnfR(-zn,&params6a) - IceRayTracing::fDnfR(-z0,&params6b);
+	distancez0surface=IceRayTracing::fDnfR(1e-7,&params6c) - IceRayTracing::fDnfR(IceRayTracing::TransitionBoundary,&params6d) + IceRayTracing::fDnfR(IceRayTracing::TransitionBoundary+1e-7,&params6f) - IceRayTracing::fDnfR(-z0,&params6b);
+      }
+
+      if(SameLayer==false){
 	distancez0z1=IceRayTracing::fDnfR(-zn,&params6a) - IceRayTracing::fDnfR(IceRayTracing::TransitionBoundary,&params6d) + IceRayTracing::fDnfR(IceRayTracing::TransitionBoundary+1e-7,&params6f) - IceRayTracing::fDnfR(-z0,&params6b);
 	distancez0surface=IceRayTracing::fDnfR(1e-7,&params6c) - IceRayTracing::fDnfR(IceRayTracing::TransitionBoundary,&params6d) + IceRayTracing::fDnfR(IceRayTracing::TransitionBoundary+1e-7,&params6f) - IceRayTracing::fDnfR(-z0,&params6b);
       }
@@ -1467,22 +1446,27 @@ void IceRayTracing::GetFullReflectedRayPath(double z0, double x1, double z1,doub
     params6d = {IceRayTracing::A_ice, IceRayTracing::GetB(IceRayTracing::TransitionBoundary+1e-7), IceRayTracing::GetC(IceRayTracing::TransitionBoundary+1e-7), lvalueR};
 
     if(IceRayTracing::TransitionBoundary!=0){
-      if (fabs(z0)<IceRayTracing::TransitionBoundary && fabs(zn)<IceRayTracing::TransitionBoundary){
+      bool SameLayer=false;
+      bool TopLayer=false;
+      bool BottomLayer=false;
+      
+      if (IceRayTracing::GetB(z0)==IceRayTracing::GetB(zn)){
+	SameLayer=true;
+	if(fabs(z0)<IceRayTracing::TransitionBoundary && fabs(zn)<IceRayTracing::TransitionBoundary){
+	  TopLayer=true;
+	}	
+	if(fabs(z0)>IceRayTracing::TransitionBoundary && fabs(zn)>IceRayTracing::TransitionBoundary){
+	  BottomLayer=true;
+	}
+      }
+      
+      if(SameLayer==true && TopLayer==true){
 	xn=IceRayTracing::fDnfR(zn,&params6a) - IceRayTracing::fDnfR(z0,&params6b);
       }
-      if (fabs(z0)>IceRayTracing::TransitionBoundary && fabs(zn)<IceRayTracing::TransitionBoundary){
-	xn=IceRayTracing::fDnfR(zn,&params6a) - IceRayTracing::fDnfR(-IceRayTracing::TransitionBoundary,&params6c) + IceRayTracing::fDnfR(-(IceRayTracing::TransitionBoundary+1e-7),&params6d) - IceRayTracing::fDnfR(z0,&params6b);
-      }
-      if (fabs(z0)>IceRayTracing::TransitionBoundary && fabs(zn)>IceRayTracing::TransitionBoundary){
+      if(SameLayer==true && BottomLayer==true){
 	xn=IceRayTracing::fDnfR(zn,&params6a) - IceRayTracing::fDnfR(z0,&params6b);
       }
-      if (fabs(z0)==IceRayTracing::TransitionBoundary && fabs(zn)<IceRayTracing::TransitionBoundary){
-	xn=IceRayTracing::fDnfR(zn,&params6a) - IceRayTracing::fDnfR(z0,&params6b);
-      }
-      if (fabs(z0)==IceRayTracing::TransitionBoundary && fabs(zn)==IceRayTracing::TransitionBoundary){
-	xn=IceRayTracing::fDnfR(zn,&params6a) - IceRayTracing::fDnfR(z0,&params6b);
-      }
-      if (fabs(z0)>IceRayTracing::TransitionBoundary && fabs(zn)==IceRayTracing::TransitionBoundary){
+      if(SameLayer==false){
 	xn=IceRayTracing::fDnfR(zn,&params6a) - IceRayTracing::fDnfR(-IceRayTracing::TransitionBoundary,&params6c) + IceRayTracing::fDnfR(-(IceRayTracing::TransitionBoundary+1e-6),&params6d) - IceRayTracing::fDnfR(z0,&params6b);
       }
     }else{
@@ -1583,7 +1567,26 @@ void IceRayTracing::GetFullRefractedRayPath(double z0, double x1, double z1, dou
     double distancez0z1=0;
     double distancez0surface=0;  
     if(IceRayTracing::TransitionBoundary!=0){
-      if (fabs(z0)>IceRayTracing::TransitionBoundary && fabs(zn)>IceRayTracing::TransitionBoundary){
+      bool SameLayer=false;
+      bool TopLayer=false;
+      bool BottomLayer=false;
+      
+      if (IceRayTracing::GetB(z0)==IceRayTracing::GetB(zn)){
+	SameLayer=true;
+	if(fabs(z0)<IceRayTracing::TransitionBoundary && fabs(zn)<IceRayTracing::TransitionBoundary){
+	  TopLayer=true;
+	}	
+	if(fabs(z0)>IceRayTracing::TransitionBoundary && fabs(zn)>IceRayTracing::TransitionBoundary){
+	  BottomLayer=true;
+	}
+      }
+    
+      if(SameLayer==true && TopLayer==true){
+	distancez0z1=IceRayTracing::fDnfR(-zn,&params6a) - IceRayTracing::fDnfR(-z0,&params6b);
+	distancez0surface=IceRayTracing::fDnfR(zmax,&params6c) - IceRayTracing::fDnfR(-z0,&params6b);
+      }
+
+      if(SameLayer==true && BottomLayer==true){
 	if(zmax<=IceRayTracing::TransitionBoundary){
 	  distancez0z1=IceRayTracing::fDnfR(-zn,&params6a) - IceRayTracing::fDnfR(-z0,&params6b);
 	  distancez0surface=IceRayTracing::fDnfR(zmax,&params6c) - IceRayTracing::fDnfR(IceRayTracing::TransitionBoundary,&params6d) + IceRayTracing::fDnfR(IceRayTracing::TransitionBoundary+1e-6,&params6f) - IceRayTracing::fDnfR(-z0,&params6b);
@@ -1592,25 +1595,10 @@ void IceRayTracing::GetFullRefractedRayPath(double z0, double x1, double z1, dou
 	  distancez0surface=IceRayTracing::fDnfR(zmax,&params6c) - IceRayTracing::fDnfR(-z0,&params6b);
 	}
       }
-      if (fabs(z0)>IceRayTracing::TransitionBoundary && fabs(zn)<IceRayTracing::TransitionBoundary){
+
+      if(SameLayer==false){
 	distancez0z1=IceRayTracing::fDnfR(-zn,&params6a) - IceRayTracing::fDnfR(IceRayTracing::TransitionBoundary,&params6d) + IceRayTracing::fDnfR(IceRayTracing::TransitionBoundary+1e-6,&params6f) - IceRayTracing::fDnfR(-z0,&params6b);
 	distancez0surface=IceRayTracing::fDnfR(zmax,&params6c) - IceRayTracing::fDnfR(IceRayTracing::TransitionBoundary,&params6d) + IceRayTracing::fDnfR(IceRayTracing::TransitionBoundary+1e-6,&params6f) - IceRayTracing::fDnfR(-z0,&params6b);
-      }
-      if (fabs(z0)<IceRayTracing::TransitionBoundary && fabs(zn)<IceRayTracing::TransitionBoundary){
-	distancez0z1=IceRayTracing::fDnfR(-zn,&params6a) - IceRayTracing::fDnfR(-z0,&params6b);
-	distancez0surface=IceRayTracing::fDnfR(zmax,&params6c) - IceRayTracing::fDnfR(-z0,&params6b);
-      }
-      if (fabs(z0)==IceRayTracing::TransitionBoundary && fabs(zn)<IceRayTracing::TransitionBoundary){
-	distancez0z1=IceRayTracing::fDnfR(-zn,&params6a) - IceRayTracing::fDnfR(-z0,&params6b);
-	distancez0surface=IceRayTracing::fDnfR(zmax,&params6c) - IceRayTracing::fDnfR(-z0,&params6b); 
-      }
-      if (fabs(z0)==IceRayTracing::TransitionBoundary && fabs(zn)==IceRayTracing::TransitionBoundary){
-	distancez0z1=IceRayTracing::fDnfR(-zn,&params6a) - IceRayTracing::fDnfR(-z0,&params6b);
-	distancez0surface=IceRayTracing::fDnfR(zmax,&params6c) - IceRayTracing::fDnfR(-z0,&params6b); 
-      }
-      if (fabs(z0)>IceRayTracing::TransitionBoundary && fabs(zn)==IceRayTracing::TransitionBoundary){
-	distancez0z1=IceRayTracing::fDnfR(-zn,&params6a) - IceRayTracing::fDnfR(IceRayTracing::TransitionBoundary,&params6d) + IceRayTracing::fDnfR(IceRayTracing::TransitionBoundary+1e-6,&params6f) - IceRayTracing::fDnfR(-z0,&params6b);
-	distancez0surface=IceRayTracing::fDnfR(zmax,&params6c) - IceRayTracing::fDnfR(IceRayTracing::TransitionBoundary,&params6d) + IceRayTracing::fDnfR(IceRayTracing::TransitionBoundary+1e-6,&params6f) - IceRayTracing::fDnfR(-z0,&params6b); 
       }
     }else{
       distancez0z1=IceRayTracing::fDnfR(-zn,&params6a) - IceRayTracing::fDnfR(-z0,&params6b);
@@ -1647,24 +1635,31 @@ void IceRayTracing::GetFullRefractedRayPath(double z0, double x1, double z1, dou
     params6b = {IceRayTracing::A_ice, IceRayTracing::GetB(z0), IceRayTracing::GetC(z0), lvalueRa};
     params6c = {IceRayTracing::A_ice, IceRayTracing::GetB(IceRayTracing::TransitionBoundary), IceRayTracing::GetC(IceRayTracing::TransitionBoundary), lvalueRa};
     params6d = {IceRayTracing::A_ice, IceRayTracing::GetB(IceRayTracing::TransitionBoundary+1e-6), IceRayTracing::GetC(IceRayTracing::TransitionBoundary+1e-6), lvalueRa}; 
-   
+  
     if(IceRayTracing::TransitionBoundary!=0){
-      if (fabs(z0)<IceRayTracing::TransitionBoundary && fabs(zn)<IceRayTracing::TransitionBoundary){
+      bool SameLayer=false;
+      bool TopLayer=false;
+      bool BottomLayer=false;
+      
+      if (IceRayTracing::GetB(z0)==IceRayTracing::GetB(zn)){
+	SameLayer=true;
+	if(fabs(z0)<IceRayTracing::TransitionBoundary && fabs(zn)<IceRayTracing::TransitionBoundary){
+	  TopLayer=true;
+	}	
+	if(fabs(z0)>IceRayTracing::TransitionBoundary && fabs(zn)>IceRayTracing::TransitionBoundary){
+	  BottomLayer=true;
+	}
+      }
+    
+      if(SameLayer==true && TopLayer==true){
 	xn=IceRayTracing::fDnfR(zn,&params6a) - IceRayTracing::fDnfR(z0,&params6b);
       }
-      if (fabs(z0)>IceRayTracing::TransitionBoundary && fabs(zn)<IceRayTracing::TransitionBoundary){
-	xn=IceRayTracing::fDnfR(zn,&params6a) - IceRayTracing::fDnfR(-IceRayTracing::TransitionBoundary,&params6c) + IceRayTracing::fDnfR(-(IceRayTracing::TransitionBoundary+1e-6),&params6d) - IceRayTracing::fDnfR(z0,&params6b);
-      }
-      if (fabs(z0)>IceRayTracing::TransitionBoundary && fabs(zn)>IceRayTracing::TransitionBoundary){
+
+      if(SameLayer==true && BottomLayer==true){
 	xn=IceRayTracing::fDnfR(zn,&params6a) - IceRayTracing::fDnfR(z0,&params6b);
       }
-      if (fabs(z0)==IceRayTracing::TransitionBoundary && fabs(zn)<IceRayTracing::TransitionBoundary){
-	xn=IceRayTracing::fDnfR(zn,&params6a) - IceRayTracing::fDnfR(z0,&params6b);
-      }
-      if (fabs(z0)==IceRayTracing::TransitionBoundary && fabs(zn)==IceRayTracing::TransitionBoundary){
-	xn=IceRayTracing::fDnfR(zn,&params6a) - IceRayTracing::fDnfR(z0,&params6b);
-      }
-      if (fabs(z0)>IceRayTracing::TransitionBoundary && fabs(zn)==IceRayTracing::TransitionBoundary){
+
+      if(SameLayer==false){
 	xn=IceRayTracing::fDnfR(zn,&params6a) - IceRayTracing::fDnfR(-IceRayTracing::TransitionBoundary,&params6c) + IceRayTracing::fDnfR(-(IceRayTracing::TransitionBoundary+1e-6),&params6d) - IceRayTracing::fDnfR(z0,&params6b);
       }
     }else{
@@ -1754,6 +1749,15 @@ double *IceRayTracing::IceRayTracing(double x0, double z0, double x1, double z1)
 
   /* Store the ray paths in text files */
   bool PlotRayPaths=false;
+
+  if(IceRayTracing::TransitionBoundary!=0){
+    if(fabs(z0)==IceRayTracing::TransitionBoundary){
+      z0=-(IceRayTracing::TransitionBoundary-0.00001);
+    }
+    if(fabs(z1)==IceRayTracing::TransitionBoundary){
+      z1=-(IceRayTracing::TransitionBoundary-0.00001);
+    }
+  }
   
   double Txcor[2]={x0,z0};/* Tx positions */
   double Rxcor[2]={x1,z1};/* Rx Positions */
@@ -1959,7 +1963,7 @@ double IceRayTracing::fRa_Cnz_df(double x,void *params){
   gsl_function F;
   F.function = &IceRayTracing::fRa_Cnz;
   F.params = params;
- 
+
   double result,abserr;
   gsl_deriv_central (&F, x, 1e-8, &result, &abserr);
 
@@ -2107,7 +2111,7 @@ void IceRayTracing::GetFullDirectRayPath_Cnz(double z0, double x1, double z1, do
     z1=dsw;
     Flip=true;
   }
-   
+  
   /* Set the name of the text files */
   //ofstream aoutD("DirectRay_Cnz.txt");
   /* Set the step size for plotting */
@@ -2370,22 +2374,16 @@ double IceRayTracing::fDa_Air(double x,void *params){
   double distancez0z1=0;
   
   if(IceRayTracing::TransitionBoundary!=0){
-    if (fabs(z0)>IceRayTracing::TransitionBoundary && fabs(1e-7)>IceRayTracing::TransitionBoundary){
+    bool SameLayer=true;
+    if (IceRayTracing::GetB(z0)==IceRayTracing::GetB(1e-7)){
+      SameLayer=true;
+    }else{
+      SameLayer=false;
+    }
+      
+    if(SameLayer==true){
       distancez0z1=IceRayTracing::fDnfR_L(x,&params1a) - IceRayTracing::fDnfR_L(x,&params1b);
-    }
-    if (fabs(z0)>IceRayTracing::TransitionBoundary && fabs(1e-7)<IceRayTracing::TransitionBoundary){
-      distancez0z1=IceRayTracing::fDnfR_L(x,&params1a) - IceRayTracing::fDnfR_L(x,&params1c) + IceRayTracing::fDnfR_L(x,&params1d) - IceRayTracing::fDnfR_L(x,&params1b);
-    }
-    if (fabs(z0)<IceRayTracing::TransitionBoundary && fabs(1e-7)<IceRayTracing::TransitionBoundary){
-      distancez0z1=IceRayTracing::fDnfR_L(x,&params1a) - IceRayTracing::fDnfR_L(x,&params1b);
-    }
-    if (fabs(z0)==IceRayTracing::TransitionBoundary && fabs(1e-7)<IceRayTracing::TransitionBoundary){
-      distancez0z1=IceRayTracing::fDnfR_L(x,&params1a) - IceRayTracing::fDnfR_L(x,&params1b);
-    }
-    if (fabs(z0)==IceRayTracing::TransitionBoundary && fabs(1e-7)==IceRayTracing::TransitionBoundary){
-      distancez0z1=IceRayTracing::fDnfR_L(x,&params1a) - IceRayTracing::fDnfR_L(x,&params1b);
-    }
-    if (fabs(z0)>IceRayTracing::TransitionBoundary && fabs(1e-7)==IceRayTracing::TransitionBoundary){
+    }else{
       distancez0z1=IceRayTracing::fDnfR_L(x,&params1a) - IceRayTracing::fDnfR_L(x,&params1c) + IceRayTracing::fDnfR_L(x,&params1d) - IceRayTracing::fDnfR_L(x,&params1b);
     }
   }else{
@@ -2397,7 +2395,7 @@ double IceRayTracing::fDa_Air(double x,void *params){
   if(std::isnan(x1_Air)){
     x1_Air=1e9;
   }
- 
+
   double output=distancez0z1+x1_Air-x1;
 
   return output;
@@ -2432,22 +2430,16 @@ double* IceRayTracing::GetDirectRayPar_Air(double z0, double x1, double z1){
   /* we do the subtraction because we are measuring the time taken between the Tx and Rx positions */
   double timeD=0;
   if(IceRayTracing::TransitionBoundary!=0){
-    if (fabs(z0)>IceRayTracing::TransitionBoundary && fabs(1e-7)>IceRayTracing::TransitionBoundary){
+    bool SameLayer=true;
+    if (IceRayTracing::GetB(z0)==IceRayTracing::GetB(1e-7)){
+      SameLayer=true;
+    }else{
+      SameLayer=false;
+    }
+      
+    if(SameLayer==true){
       timeD=IceRayTracing::ftimeD(-z0,&params2a) - IceRayTracing::ftimeD(1e-7,&params2b);
-    }
-    if (fabs(z0)>IceRayTracing::TransitionBoundary && fabs(1e-7)<IceRayTracing::TransitionBoundary){
-      timeD=IceRayTracing::ftimeD(-z0,&params2a) - IceRayTracing::ftimeD(IceRayTracing::TransitionBoundary+1e-7,&params2d) + IceRayTracing::ftimeD(IceRayTracing::TransitionBoundary,&params2c) - IceRayTracing::ftimeD(1e-7,&params2b);
-    }
-    if (fabs(z0)<IceRayTracing::TransitionBoundary && fabs(1e-7)<IceRayTracing::TransitionBoundary){
-      timeD=IceRayTracing::ftimeD(-z0,&params2a) - IceRayTracing::ftimeD(1e-7,&params2b);
-    }
-    if (fabs(z0)==IceRayTracing::TransitionBoundary && fabs(1e-7)<IceRayTracing::TransitionBoundary){
-      timeD=IceRayTracing::ftimeD(-z0,&params2a) - IceRayTracing::ftimeD(1e-7,&params2b);
-    }
-    if (fabs(z0)==IceRayTracing::TransitionBoundary && fabs(1e-7)==IceRayTracing::TransitionBoundary){
-      timeD=IceRayTracing::ftimeD(-z0,&params2a) - IceRayTracing::ftimeD(1e-7,&params2b);
-    }
-    if (fabs(z0)>IceRayTracing::TransitionBoundary && fabs(1e-7)==IceRayTracing::TransitionBoundary){
+    }else{
       timeD=IceRayTracing::ftimeD(-z0,&params2a) - IceRayTracing::ftimeD(IceRayTracing::TransitionBoundary+1e-7,&params2d) + IceRayTracing::ftimeD(IceRayTracing::TransitionBoundary,&params2c) - IceRayTracing::ftimeD(1e-7,&params2b);
     }
   }else{
@@ -2478,7 +2470,7 @@ double* IceRayTracing::GetDirectRayPar_Air(double z0, double x1, double z1){
   double AirAngle=asin(IceRayTracing::Getnz(1e-7)*sin(RangD));
   double AirHorizontalDistance=tan(AirAngle)*z1;
   double AirTime=AirHorizontalDistance/IceRayTracing::c_light_ms;
- 
+
   timeD=timeD+AirTime;
   RangD=AirAngle*(180.0/IceRayTracing::pi);
   
@@ -2700,7 +2692,7 @@ void IceRayTracing::MakeTable(double ShowerHitDistance, double ShowerDepth, doub
 	if(IncidenceAngleInIce_Tx[1]==100){
 	  GridZValueb[AntNum][12].push_back(-1000);
 	}
-	}else{
+      }else{
 	GridZValueb[AntNum][6].push_back(-1000);
 	GridZValueb[AntNum][7].push_back(-1000);
 	GridZValueb[AntNum][8].push_back(-1000);
@@ -2731,7 +2723,7 @@ double IceRayTracing::GetInterpolatedValue(double xT, double zT, int rtParameter
 
   IceRayTracing::GridStartX=GridPositionXb[AntNum][0];
   IceRayTracing::GridStartZ=GridPositionZb[AntNum][0];
- 
+
   IceRayTracing::GridStopX=GridPositionXb[AntNum][GridPositionXb[AntNum].size()-1];
   IceRayTracing::GridStopZ=GridPositionZb[AntNum][GridPositionZb[AntNum].size()-1];
   //IceRayTracing::GridWidthX=IceRayTracing::GridStopX-IceRayTracing::GridStartX;
@@ -2810,91 +2802,6 @@ double IceRayTracing::GetInterpolatedValue(double xT, double zT, int rtParameter
       }
     }
   }
-  
-  // double minXbin=round((xR-IceRayTracing::GridStartX)/IceRayTracing::GridStepSizeX_O);
-  // double minZbin=round(fabs(zR-IceRayTracing::GridStartZ)/IceRayTracing::GridStepSizeZ_O);
-     
-  // int newXbin=minXbin;
-  // int newZbin=minZbin;
-      
-  // int count=0;
-  // if(minXbin<1){
-  //   minXbin=1;
-  // }
-  // if(minZbin<1){
-  //   minZbin=1;
-  // }
-
-  // if(minXbin+1>IceRayTracing::TotalStepsX_O){
-  //   minXbin=IceRayTracing::TotalStepsX_O-2;
-  // }
-  // if(minZbin+1>IceRayTracing::TotalStepsZ_O){
-  //   minZbin=IceRayTracing::TotalStepsZ_O-2;
-  // }  
-
-  // int startbinX=minXbin-1;
-  // int endbinX=minXbin+1;
-  // int startbinZ=minZbin-1;
-  // int endbinZ=minZbin+1;
-     
-  // newXbin=(minXbin-1);
-  // newZbin=(minZbin-1);
-  // //int newich=newXbin*IceRayTracing::TotalStepsZ_O+newZbin;
-  // double minDist1=fabs(((xR-GridPositionXb[AntNum][newXbin])*(xR-GridPositionXb[AntNum][newXbin])+(zR-GridPositionZb[AntNum][newZbin])*(zR-GridPositionZb[AntNum][newZbin])));
-
-  // newXbin=minXbin+1;
-  // newZbin=minZbin+1;
-  // //newich=newXbin*IceRayTracing::TotalStepsZ_O+newZbin;
-  // double minDist2=fabs(((xR-GridPositionXb[AntNum][newXbin])*(xR-GridPositionXb[AntNum][newXbin])+(zR-GridPositionZb[AntNum][newZbin])*(zR-GridPositionZb[AntNum][newZbin])));
- 
-  // startbinX=minXbin-1;
-  // endbinX=minXbin+1;
-  // startbinZ=minZbin-1;
-  // endbinZ=minZbin+1;
-   
-  // sum1=0;
-  // sum2=0;
-  // NewZValue=0;
-    
-  // for(int ixn=startbinX;ixn<endbinX;ixn++){
-  //   for(int izn=startbinZ;izn<endbinZ;izn++){
-  //     newXbin=ixn;
-  //     newZbin=izn;	  
-  //     int newich=(ixn)*IceRayTracing::TotalStepsZ_O+(izn);
-
-  //     if(newich>=0 && newich<GridPoints && ixn<IceRayTracing::TotalStepsX_O && izn<IceRayTracing::TotalStepsZ_O && ixn>=0 && izn>=0){
-  // 	MinDist[count]=fabs(((xR-GridPositionXb[AntNum][ixn])*(xR-GridPositionXb[AntNum][ixn])+(zR-GridPositionZb[AntNum][izn])*(zR-GridPositionZb[AntNum][izn])));
-  // 	MinDistBin[count]=newich;
-
-  // 	if(GridZValueb[AntNum][rtParameter][MinDistBin[count]]!=-1000){
-  // 	  //cout<<"in here "<<endl;
-  // 	  sum1+=(1.0/MinDist[count])*GridZValueb[AntNum][rtParameter][MinDistBin[count]];
-  // 	  sum2+=(1.0/MinDist[count]);
-  // 	  NewZValue=sum1/sum2;
-  // 	}else{
-  // 	  //cout<<"in here too"<<endl;
-  // 	  sum1+=0;
-  // 	  sum2+=0;
-  // 	  NewZValue=-1000;
-  // 	}
-	
-  // 	if(MinDist[count]==0){
-  // 	  if(GridZValueb[AntNum][rtParameter][MinDistBin[count]]!=-1000){
-  // 	    //cout<<"in here too 2"<<endl;
-  // 	    NewZValue=GridZValueb[AntNum][rtParameter][MinDistBin[count]];
-  // 	    izn=minZbin+3;
-  // 	    ixn=minXbin+3;
-  // 	  }else{
-  // 	    //cout<<"in here too 3"<<endl;
-  // 	    NewZValue=-1000;
-  // 	    izn=minZbin+3;
-  // 	    ixn=minXbin+3;
-  // 	  }
-  // 	}
-  // 	count++;
-  //     }
-  //   }
-  // }
 
   return NewZValue;
   
