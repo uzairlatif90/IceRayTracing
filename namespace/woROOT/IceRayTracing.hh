@@ -49,13 +49,13 @@ namespace IceRayTracing{
   static constexpr double c_light_ms=299792458;
   /* Set the value of the asymptotic parameter of the refractive index model */
 
-  //  static const double A_ice_def=1.78;
+  static const double A_ice_def=1.78;
   static const double B_ice_def=-0.43;
   static const double C_ice_def=0.0132;
-  //static constexpr double TransitionBoundary=0;
+  static constexpr double TransitionBoundary=0;
 
-  const double A_ice_def=1.775;
-  const double TransitionBoundary=14.9;
+  //const double A_ice_def=1.775;
+  //const double TransitionBoundary=14.9;
   
   static double A_ice=A_ice_def;
   static double B_ice=B_ice_def;
