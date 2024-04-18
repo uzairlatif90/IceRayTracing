@@ -485,7 +485,7 @@ double IceRayTracing::fRa(double x,void *params){
       
     if (IceRayTracing::GetB(z0)==IceRayTracing::GetB(z1)){
       SameLayer=true;
-      if(fabs(z0)<IceRayTracing::TransitionBoundary && fabs(z1)<IceRayTracing::TransitionBoundary){
+      if(fabs(z0)<=IceRayTracing::TransitionBoundary && fabs(z1)<=IceRayTracing::TransitionBoundary){
 	TopLayer=true;
       }	
       if(fabs(z0)>IceRayTracing::TransitionBoundary && fabs(z1)>IceRayTracing::TransitionBoundary){
@@ -564,7 +564,7 @@ double IceRayTracing::fRaa(double x,void *params){
       
       if (IceRayTracing::GetB(z0)==IceRayTracing::GetB(z1)){
 	SameLayer=true;
-	if(fabs(z0)<IceRayTracing::TransitionBoundary && fabs(z1)<IceRayTracing::TransitionBoundary){
+	if(fabs(z0)<=IceRayTracing::TransitionBoundary && fabs(z1)<=IceRayTracing::TransitionBoundary){
 	  TopLayer=true;
 	}	
 	if(fabs(z0)>IceRayTracing::TransitionBoundary && fabs(z1)>IceRayTracing::TransitionBoundary){
@@ -793,7 +793,7 @@ double *IceRayTracing::GetReflectedRayPar(double z0, double x1 ,double z1){
     bool BottomLayer=false;
     if (IceRayTracing::GetB(z0)==IceRayTracing::GetB(z1)){
       SameLayer=true;
-      if(fabs(z0)<IceRayTracing::TransitionBoundary && fabs(z1)<IceRayTracing::TransitionBoundary){
+      if(fabs(z0)<=IceRayTracing::TransitionBoundary && fabs(z1)<=IceRayTracing::TransitionBoundary){
 	TopLayer=true;
       }
       if(fabs(z0)>IceRayTracing::TransitionBoundary && fabs(z1)>IceRayTracing::TransitionBoundary){
@@ -1094,7 +1094,7 @@ double *IceRayTracing::GetRefractedRayPar(double z0, double x1 ,double z1, doubl
       
 	if (IceRayTracing::GetB(z0)==IceRayTracing::GetB(z1)){
 	  SameLayer=true;
-	  if(fabs(z0)<IceRayTracing::TransitionBoundary && fabs(z1)<IceRayTracing::TransitionBoundary){
+	  if(fabs(z0)<=IceRayTracing::TransitionBoundary && fabs(z1)<=IceRayTracing::TransitionBoundary){
 	    TopLayer=true;
 	  }	
 	  if(fabs(z0)>IceRayTracing::TransitionBoundary && fabs(z1)>IceRayTracing::TransitionBoundary){
@@ -1387,7 +1387,7 @@ void IceRayTracing::GetFullReflectedRayPath(double z0, double x1, double z1,doub
       
       if (IceRayTracing::GetB(z0)==IceRayTracing::GetB(zn)){
 	SameLayer=true;
-	if(fabs(z0)<IceRayTracing::TransitionBoundary && fabs(zn)<IceRayTracing::TransitionBoundary){
+	if(fabs(z0)<=IceRayTracing::TransitionBoundary && fabs(zn)<=IceRayTracing::TransitionBoundary){
 	  TopLayer=true;
 	}	
 	if(fabs(z0)>IceRayTracing::TransitionBoundary && fabs(zn)>IceRayTracing::TransitionBoundary){
@@ -1452,7 +1452,7 @@ void IceRayTracing::GetFullReflectedRayPath(double z0, double x1, double z1,doub
       
       if (IceRayTracing::GetB(z0)==IceRayTracing::GetB(zn)){
 	SameLayer=true;
-	if(fabs(z0)<IceRayTracing::TransitionBoundary && fabs(zn)<IceRayTracing::TransitionBoundary){
+	if(fabs(z0)<=IceRayTracing::TransitionBoundary && fabs(zn)<=IceRayTracing::TransitionBoundary){
 	  TopLayer=true;
 	}	
 	if(fabs(z0)>IceRayTracing::TransitionBoundary && fabs(zn)>IceRayTracing::TransitionBoundary){
@@ -1573,7 +1573,7 @@ void IceRayTracing::GetFullRefractedRayPath(double z0, double x1, double z1, dou
       
       if (IceRayTracing::GetB(z0)==IceRayTracing::GetB(zn)){
 	SameLayer=true;
-	if(fabs(z0)<IceRayTracing::TransitionBoundary && fabs(zn)<IceRayTracing::TransitionBoundary){
+	if(fabs(z0)<=IceRayTracing::TransitionBoundary && fabs(zn)<=IceRayTracing::TransitionBoundary){
 	  TopLayer=true;
 	}	
 	if(fabs(z0)>IceRayTracing::TransitionBoundary && fabs(zn)>IceRayTracing::TransitionBoundary){
@@ -1643,7 +1643,7 @@ void IceRayTracing::GetFullRefractedRayPath(double z0, double x1, double z1, dou
       
       if (IceRayTracing::GetB(z0)==IceRayTracing::GetB(zn)){
 	SameLayer=true;
-	if(fabs(z0)<IceRayTracing::TransitionBoundary && fabs(zn)<IceRayTracing::TransitionBoundary){
+	if(fabs(z0)<=IceRayTracing::TransitionBoundary && fabs(zn)<=IceRayTracing::TransitionBoundary){
 	  TopLayer=true;
 	}	
 	if(fabs(z0)>IceRayTracing::TransitionBoundary && fabs(zn)>IceRayTracing::TransitionBoundary){
