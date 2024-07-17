@@ -57,15 +57,15 @@ void GetFocusingFactor(double zT, double xR, double zR, double focusing[2], doub
   // cout<<" 4 "<<distance[3]<<" "<<recAng[3]<<" "<<lauAng[3]<<endl;
   
   if(RecieveAngle[0]!=-1000 && RecieveAngleB[0]!=-1000){
-    focusing[0]= sqrt( ((distance[0] / (sin(recAng[0]) * fabs( (recPos[2] - recPos[0]) / (lauAng[2] - lauAng[0]) ) ) ) * (nTx / nRx) ));
-    focusparts[0]=sqrt(distance[0] / sin(recAng[0]));
+    focusing[0]= sqrt( ((distance[0] / (sin(lauAng[0]) * fabs( (recPos[2] - recPos[0]) / (lauAng[2] - lauAng[0]) ) ) ) * (nTx / nRx) ));
+    focusparts[0]=sqrt(distance[0] / sin(lauAng[0]));
     focusparts[1]=sqrt(1.0/fabs( (recPos[2] - recPos[0]) / (lauAng[2] - lauAng[0]) ));
     focusparts[2]=sqrt((nTx / nRx));
   }
   
   if(RecieveAngle[1]!=-1000 && RecieveAngleB[1]!=-1000){
-    focusing[1]= sqrt( ((distance[1] /( sin(recAng[1]) * fabs( (recPos[3] - recPos[1]) / (lauAng[3] - lauAng[1]) ) ) ) * (nTx / nRx)));
-    focusparts[3]=sqrt(distance[1] / sin(recAng[1]));
+    focusing[1]= sqrt( ((distance[1] /( sin(lauAng[1]) * fabs( (recPos[3] - recPos[1]) / (lauAng[3] - lauAng[1]) ) ) ) * (nTx / nRx)));
+    focusparts[3]=sqrt(distance[1] / sin(lauAng[1]));
     focusparts[4]=sqrt(1.0/fabs( (recPos[3] - recPos[1]) / (lauAng[3] - lauAng[1]) ));
     focusparts[5]=sqrt((nTx / nRx));
   }
@@ -76,16 +76,16 @@ void GetFocusingFactor(double zT, double xR, double zR, double focusing[2], doub
 void FocusingFactor(){
 
   
-  double GridStartX=300.5;
-  double GridStopX=500.5;
+  double GridStartX=0.5;
+  double GridStopX=200.5;
 
-  double GridStartZ=-150.1;//-50.1-(100/2);
-  double GridStopZ=-50.1;//-50.1+(100/2);
+  double GridStartZ=-100.1;//-50.1-(100/2);
+  double GridStopZ=-0.1;//-50.1+(100/2);
 
   double GridStepSizeX_O=0.5;
   double GridStepSizeZ_O=0.5; 
  
-  int TotalStepsX_O=(100/GridStepSizeX_O)+1;
+  int TotalStepsX_O=(200/GridStepSizeX_O)+1;
   int TotalStepsZ_O=(100/GridStepSizeZ_O)+1;
 
   TGraph2D *gr2A=new TGraph2D();
@@ -113,7 +113,7 @@ void FocusingFactor(){
 
   double xT=0;
   double zT=0;
-  double zR=-50; 
+  double zR=-20; 
   
   for(int ix=0;ix<TotalStepsX_O;ix++){
     for(int iz=0;iz<TotalStepsZ_O;iz++){
@@ -125,6 +125,7 @@ void FocusingFactor(){
       double focusparts[6]={1,1,1,1,1,1};
   
       GetFocusingFactor(zT, xT, zR, focusing, focusparts);
+      //cout<<xT<<" "<<zT<<" "<<focusing[0]<<" "<<focusing[1]<<" "<<focusing[2]<<endl;
       if(std::isnan(focusing[0])==false && focusing[0]!=1){
 	gr2A->SetPoint(count, xT,zT, focusing[0]);
 	gr2B->SetPoint(count, xT,zT, focusparts[0]);
