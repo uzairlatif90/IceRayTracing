@@ -662,7 +662,7 @@ double* IceRayTracing::GetDirectRayPar(double z0, double x1, double z1){
   double lvalueD=IceRayTracing::FindFunctionRoot(F1,1e-7,UpperLimitL[0]);
   double LangD=asin(lvalueD/IceRayTracing::Getnz(z0))*(180.0/IceRayTracing::pi);
   double checkzeroD=IceRayTracing::fDa(lvalueD,&params1);
-
+  
   /* Get the propagation time for the direct ray using the ftimeD function after we have gotten the value of the L parameter. */
   struct IceRayTracing::ftimeD_params params2a = {IceRayTracing::A_ice, IceRayTracing::GetB(z0), -IceRayTracing::GetC(z0), IceRayTracing::c_light_ms,lvalueD};
   struct IceRayTracing::ftimeD_params params2b = {IceRayTracing::A_ice, IceRayTracing::GetB(z1), -IceRayTracing::GetC(z1), IceRayTracing::c_light_ms,lvalueD};
@@ -703,15 +703,10 @@ double* IceRayTracing::GetDirectRayPar(double z0, double x1, double z1){
   F5.params = &params5a;
   gsl_deriv_central (&F5, -z1, 1e-8, &result, &abserr);
   double RangD=atan(result)*(180.0/IceRayTracing::pi);
-
+  
   /* When the Tx and Rx are at the same depth my function struggles to find a ray between them when they are very close to each other. In that case the ray is pretty much like a straight line. */
   if(z1==z0 && std::isnan(RangD)==true){
     RangD=180-LangD;
-  }
-  
-  /* This sometimes happens that when the Rx is very close to the peak point (or the turning point) of the ray then its hard to calculate the derivative around that area since the solution blows up around that area. therefore this is a good approximation. */
-  if(z1!=z0 && std::isnan(RangD)==true){
-    RangD=90;
   }
   
   dsw=0;
@@ -722,7 +717,7 @@ double* IceRayTracing::GetDirectRayPar(double z0, double x1, double z1){
     z1=dsw;
   }
 
-  if(std::isnan(checkzeroD)){
+  if(std::isnan(checkzeroD) || std::isnan(RangD)==true){
     checkzeroD=-1000;
   }
   
@@ -993,6 +988,7 @@ double *IceRayTracing::GetRefractedRayPar(double z0, double x1 ,double z1, doubl
   }
   
   if(fabs(checkzeroRa[0])<0.5 && fabs(checkzeroD)>0.5 && fabs(checkzeroR)>0.5){
+     
     lvalueRa[1]=IceRayTracing::FindFunctionRoot(F4,lvalueRa[0]-0.23,lvalueRa[0]-0.023);
     LangRa[1]=asin(lvalueRa[1]/IceRayTracing::Getnz(z0))*(180.0/IceRayTracing::pi);
     checkzeroRa[1]=IceRayTracing::fRaa(lvalueRa[1],&params4);

@@ -710,11 +710,6 @@ double* IceRayTracing::GetDirectRayPar(double z0, double x1, double z1){
     RangD=180-LangD;
   }
   
-  /* This sometimes happens that when the Rx is very close to the peak point (or the turning point) of the ray then its hard to calculate the derivative around that area since the solution blows up around that area. therefore this is a good approximation. */
-  if(z1!=z0 && std::isnan(RangD)==true){
-    RangD=90;
-  }
-  
   dsw=0;
   /* If the Tx and Rx depth were switched then put them back to their original position */
   if(Flip==true){
