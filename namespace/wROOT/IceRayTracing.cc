@@ -1802,14 +1802,15 @@ double *IceRayTracing::IceRayTracing(double x0, double z0, double x1, double z1,
   /* Store the ray paths in text files */
   //bool PlotRayPaths=true;
   
-    if(IceRayTracing::TransitionBoundary!=0){
-    if(fabs(z0)==IceRayTracing::TransitionBoundary){
+  if(IceRayTracing::TransitionBoundary!=0){
+    if(fabs(round(z0*1.e9)/1.e9)==IceRayTracing::TransitionBoundary){
       z0=-(IceRayTracing::TransitionBoundary-0.00001);
     }
-    if(fabs(z1)==IceRayTracing::TransitionBoundary){
+    if(fabs(round(z1*1.e9)/1.e9)==IceRayTracing::TransitionBoundary){
       z1=-(IceRayTracing::TransitionBoundary-0.00001);
     }
   }
+
 
   double Txcor[2]={x0,z0};/* Tx positions */
   double Rxcor[2]={x1,z1};/* Rx Positions */
