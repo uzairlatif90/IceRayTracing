@@ -32,7 +32,7 @@ namespace IceRayTracing{
 
   static double GridStepSizeX_O=0.1;
   static double GridStepSizeZ_O=0.1;
-  static double GridWidthX=20;
+  static double GridWidthX=40;
   static double GridWidthZ=20;
 
   static int GridPoints=100;////just set a non-zeronumber for now
